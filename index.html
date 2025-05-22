@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truth Seekers - CTRL+P</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <!-- QR Code Library removed -->
+</head>
+<body>
+    <div class="container">
+        <!-- Start Screen -->
+        <div id="startScreen" class="screen active">
+            <div class="logo-container">
+                <img src="Truth_seekers_logo.png" alt="Truth Seekers Logo" class="logo">
+            </div>
+            <h1>CTRL+P</h1>
+            <p>Ontmasker de Fakemaker!</p>
+            <div class="button-container">
+                <button id="hostGameBtn" class="primary-button">Host Game</button>
+                <button id="goToJoinBtn" class="secondary-button">Join Game</button>
+            </div>
+        </div>
+
+        <!-- Host Setup Screen -->
+        <div id="hostSetupScreen" class="screen">
+            <h1>Create a Game</h1>
+            <p>Enter your name to host a new game</p>
+            <div class="form-group">
+                <input type="text" id="hostNameInput" placeholder="Your Name" class="input-field">
+                <button id="createGameBtn" class="primary-button">Create Game</button>
+                <button id="backFromHostBtn" class="secondary-button" onclick="showScreen('startScreen')">Back</button>
+            </div>
+        </div>
+
+        <!-- Join Game Screen -->
+        <div id="joinGameScreen" class="screen">
+            <h1>Join a Game</h1>
+            <p>Enter your name and the game code</p>
+            <div class="form-group">
+                <input type="text" id="playerNameInput" placeholder="Your Name" class="input-field">
+                <input type="text" id="gameCodeInput" placeholder="Game Code" class="input-field" maxlength="5">
+                <button id="submitJoinBtn" class="primary-button">Join Game</button>
+                <button id="backFromJoinBtn" class="secondary-button" onclick="showScreen('startScreen')">Back</button>
+                <p id="joinErrorMessage" class="error-message hidden"></p>
+            </div>
+        </div>
+
+        <!-- Role Code Screen -->
+        <div id="roleCodeScreen" class="screen">
+            <h1>Enter Role Code</h1>
+            <p>Enter the secret role code given to you</p>
+            <div class="form-group">
+                <input type="text" id="roleCodeInput" placeholder="Role Code" class="input-field" maxlength="4">
+                <button id="submitRoleBtn" class="primary-button">Submit</button>
+                <p id="roleErrorMessage" class="error-message hidden"></p>
+            </div>
+        </div>
+
+        <!-- Role Confirmation Screen -->
+        <div id="roleConfirmationScreen" class="screen">
+            <h1>Your Role</h1>
+            <div class="role-display">
+                <p>You are a <span id="playerRoleDisplay" class="highlight"></span></p>
+                <p id="roleInstructions"></p>
+            </div>
+            <button id="continueAfterRoleBtn" class="primary-button">Continue</button>
+        </div>
+
+        <!-- Host Game Screen -->
+        <div id="hostGameScreen" class="screen">
+            <h1>Game Created!</h1>
+            <p>Share this game code with other players:</p>
+            <div class="game-code">
+                <span id="gameCodeDisplay"></span>
+            </div>
+            <button id="copyCodeBtn" class="secondary-button" onclick="copyToClipboard(document.getElementById('gameCodeDisplay').textContent)">Copy Code</button>
+            <button id="shareGameBtn" class="secondary-button">Share Game Link</button>
+            
+            <p id="shareSuccessMessage" class="success-message hidden"></p>
+            
+            <h2>Players:</h2>
+            <div id="hostPlayerList" class="player-list"></div>
+            
+            <button id="startGameBtn" class="primary-button" disabled>Start Game</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <div class="game-header">
+                <div class="player-info">
+                    <p>Current Player: <span id="currentPlayerDisplay" class="highlight"></span></p>
+                    <p>Your Role: <span id="roleName" class="highlight"></span></p>
+                    <p>Your Steps: <span id="stepsDisplay" class="highlight">0</span></p>
+                </div>
+                <div id="answerInfo" class="answer-info hidden">
+                    <p>Correct Answer: <span id="correctAnswer" class="highlight"></span></p>
+                </div>
+            </div>
+            
+            <div id="yourTurnInfo" class="your-turn-info">
+                <p>It's your turn!</p>
+                <button id="showQuestionBtn" class="primary-button">Show Question</button>
+            </div>
+            
+            <div class="connection-status">
+                <span id="connectionIndicator" class="connection-indicator"></span>
+                <span id="connectionStatus">Connected</span>
+            </div>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="questionScreen" class="screen">
+            <h2 id="questionNumber">Question 1</h2>
+            <p id="questionContent" class="question-content"></p>
+            
+            <div id="imageContainer" class="media-container hidden">
+                <img id="questionImage" src="" alt="Question Image">
+            </div>
+            
+            <div id="videoContainer" class="media-container hidden">
+                <video id="questionVideo" controls>
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            
+            <div id="externalActionContainer" class="media-container hidden">
+                <p id="externalActionPrompt"></p>
+            </div>
+            
+            <div class="answer-buttons">
+                <button id="trueBtn" class="answer-button true">Echt</button>
+                <button id="falseBtn" class="answer-button false">Fake</button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="resultScreen" class="screen">
+            <h1 id="resultTitle">Result</h1>
+            <p id="resultMessage"></p>
+            <p>Your steps: <span id="stepsDisplayResult" class="highlight">0</span></p>
+            <button id="nextTurnBtn" class="primary-button">Next Turn</button>
+            <button id="newGameBtn" class="secondary-button">New Game</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
