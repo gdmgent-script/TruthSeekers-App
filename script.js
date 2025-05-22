@@ -58,23 +58,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     const response = await fetch('questions.json');
     if (!response.ok) {
-      throw new Error('Failed to load questions');
+      // Instead of throwing an error, create a default question with VIDEO1.mp4
+      console.log('Questions file not found, creating default video question');
+      gameState.questions = [];
+    } else {
+      gameState.questions = await response.json();
     }
-    gameState.questions = await response.json();
     
-    // Add image question
-    gameState.questions.push({
-      id: gameState.questions.length + 1,
-      type: "image",
-      content: "Is deze afbeelding echt of nep?",
-      answer: true, // "echt" is true
-      imagePath: "_MG_9275.jpg"
-    });
+    // Add video question (replacing the image question)
+    gameState.questions = [{
+      id: 1,
+      type: "video",
+      content: "Is deze video echt of nep?",
+      answer: false, // "fake" is false
+      videoUrl: "VIDEO1.mp4"
+    }];
     
-    shuffleQuestions();
+    // No need to shuffle with just one question
   } catch (error) {
     console.error('Error loading questions:', error);
-    alert('Failed to load questions. Please refresh the page.');
+    // Remove the alert that was causing startup error
+    gameState.questions = [{
+      id: 1,
+      type: "video",
+      content: "Is deze video echt of nep?",
+      answer: false, // "fake" is false
+      videoUrl: "VIDEO1.mp4"
+    }];
   }
 
   // Set up event listeners
@@ -118,13 +128,13 @@ function generateGameCode() {
 async function createGame() {
   const hostName = document.getElementById('hostNameInput').value.trim();
   if (!hostName) {
-    alert('Please enter your name');
+    alert('Voer je naam in');
     return;
   }
 
   // Show loading indicator
   document.getElementById('createGameBtn').disabled = true;
-  document.getElementById('createGameBtn').textContent = 'Creating game...';
+  document.getElementById('createGameBtn').textContent = 'Spel aanmaken...';
 
   gameState.playerName = hostName;
   gameState.gameCode = generateGameCode();
@@ -152,11 +162,11 @@ async function createGame() {
     showScreen('roleCodeScreen');
   } catch (error) {
     console.error('Error creating game:', error);
-    alert('Failed to create game. Please try again.');
+    alert('Kon geen spel aanmaken. Probeer het opnieuw.');
   } finally {
     // Reset button
     document.getElementById('createGameBtn').disabled = false;
-    document.getElementById('createGameBtn').textContent = 'Create Game';
+    document.getElementById('createGameBtn').textContent = 'Maak Spel';
   }
 }
 
@@ -166,26 +176,26 @@ async function joinGame() {
   const gameCode = document.getElementById('gameCodeInput').value.trim().toUpperCase();
   
   if (!playerName || !gameCode) {
-    showError('joinErrorMessage', 'Please enter your name and game code');
+    showError('joinErrorMessage', 'Voer je naam en spelcode in');
     return;
   }
   
   // Show loading indicator
   document.getElementById('submitJoinBtn').disabled = true;
-  document.getElementById('submitJoinBtn').textContent = 'Joining...';
+  document.getElementById('submitJoinBtn').textContent = 'Deelnemen...';
   
   try {
     // Try to load game from Firebase
     const gameData = await loadGameFromFirebase(gameCode);
     
     if (!gameData) {
-      showError('joinErrorMessage', 'Game not found. Please check the code and try again.');
+      showError('joinErrorMessage', 'Spel niet gevonden. Controleer de code en probeer opnieuw.');
       return;
     }
     
     // Check if name is already taken
     if (gameData.players && gameData.players.some(p => p.name === playerName)) {
-      showError('joinErrorMessage', 'Name already taken. Please choose another name.');
+      showError('joinErrorMessage', 'Naam is al in gebruik. Kies een andere naam.');
       return;
     }
     
@@ -224,11 +234,11 @@ async function joinGame() {
     showScreen('roleCodeScreen');
   } catch (error) {
     console.error("Error joining game:", error);
-    showError('joinErrorMessage', 'Error joining game. Please try again.');
+    showError('joinErrorMessage', 'Fout bij deelnemen aan spel. Probeer het opnieuw.');
   } finally {
     // Reset button
     document.getElementById('submitJoinBtn').disabled = false;
-    document.getElementById('submitJoinBtn').textContent = 'Join Game';
+    document.getElementById('submitJoinBtn').textContent = 'Deelnemen';
   }
 }
 
@@ -267,17 +277,16 @@ function updatePlayerList() {
     playerListElement.appendChild(playerItem);
   });
   
-  // Enable start button if there are players and at least one has a role
+  // Enable start button if there are at least 2 players and at least one has a role
   document.getElementById('startGameBtn').disabled = gameState.players.length < 2 || !gameState.players.some(p => p.role);
 }
 
 // Start game (host only)
 async function startGame() {
-  // Check if we have at least one Fakemaker
-  const hasFakemaker = gameState.players.some(player => player.role === 'Fakemaker');
-  
-  if (!hasFakemaker) {
-    alert('At least one player must have the Fakemaker role. Please assign roles first.');
+  // No longer require a Fakemaker to be in the game
+  // Just check that players have roles assigned
+  if (!gameState.players.some(player => player.role)) {
+    alert('Spelers moeten eerst rollen toegewezen krijgen.');
     showScreen('roleCodeScreen');
     return;
   }
@@ -313,20 +322,20 @@ async function submitRoleCode() {
   const roleCode = document.getElementById('roleCodeInput').value.trim();
   
   if (!roleCode) {
-    showError('roleErrorMessage', 'Please enter a role code');
+    showError('roleErrorMessage', 'Voer een rolcode in');
     return;
   }
   
   // Validate role code
   const roleEntry = roleCodes.find(r => r.code === roleCode);
   if (!roleEntry) {
-    showError('roleErrorMessage', 'Invalid role code');
+    showError('roleErrorMessage', 'Ongeldige rolcode');
     return;
   }
   
   // Show loading indicator
   document.getElementById('submitRoleBtn').disabled = true;
-  document.getElementById('submitRoleBtn').textContent = 'Submitting...';
+  document.getElementById('submitRoleBtn').textContent = 'Bevestigen...';
   
   try {
     // Update player role
@@ -352,21 +361,21 @@ async function submitRoleCode() {
     // Set role instructions
     if (roleEntry.role === 'Fakemaker') {
       document.getElementById('roleInstructions').textContent = 
-        'As the Fakemaker, you will see the correct answers. Try to blend in with the Factcheckers!';
+        'Als Fakemaker zie je de juiste antwoorden. Probeer niet op te vallen tussen de Factcheckers!';
     } else {
       document.getElementById('roleInstructions').textContent = 
-        'As a Factchecker, try to identify who is the Fakemaker by observing their answers.';
+        'Als Factchecker probeer je te ontdekken wie de Fakemaker is door hun antwoorden te observeren.';
     }
     
     // Show role confirmation screen
     showScreen('roleConfirmationScreen');
   } catch (error) {
     console.error('Error submitting role:', error);
-    showError('roleErrorMessage', 'Error submitting role. Please try again.');
+    showError('roleErrorMessage', 'Fout bij bevestigen rol. Probeer het opnieuw.');
   } finally {
     // Reset button
     document.getElementById('submitRoleBtn').disabled = false;
-    document.getElementById('submitRoleBtn').textContent = 'Submit';
+    document.getElementById('submitRoleBtn').textContent = 'Bevestigen';
   }
 }
 
