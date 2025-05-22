@@ -54,6 +54,34 @@ function shuffleQuestions() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+  // Video Modal Functionality
+  const videoThumbnail = document.getElementById('videoThumbnail');
+  const videoModal = document.getElementById('videoModal');
+  const modalVideo = document.getElementById('modalVideo');
+  const closeButton = document.querySelector('.close-button');
+  
+  if (videoThumbnail) {
+    videoThumbnail.addEventListener('click', function() {
+      videoModal.style.display = 'flex';
+      modalVideo.play();
+    });
+  }
+  
+  if (closeButton) {
+    closeButton.addEventListener('click', function() {
+      videoModal.style.display = 'none';
+      modalVideo.pause();
+    });
+  }
+  
+  // Close modal when clicking outside of content
+  window.addEventListener('click', function(event) {
+    if (event.target === videoModal) {
+      videoModal.style.display = 'none';
+      modalVideo.pause();
+    }
+  });
+
   // Load questions
   try {
     const response = await fetch('questions.json');
@@ -467,34 +495,18 @@ async function submitAnswer(answer) {
   const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
   const isCorrect = answer === currentQuestion.answer;
   
-  let resultMessage = '';
-  let stepChange = 0;
-  
-  if (isCorrect) {
-    document.getElementById('resultTitle').textContent = 'Correct!';
-    stepChange = 1;
-    resultMessage = `${gameState.playerName} gaat 1 stap vooruit.`;
-  } else {
-    document.getElementById('resultTitle').textContent = 'Wrong!';
-    stepChange = -Math.floor(Math.random() * 5) - 1; // -1 to -5 steps
-    resultMessage = `${gameState.playerName} gaat ${Math.abs(stepChange)} stap(pen) achteruit.`;
-  }
-  
   // Update player steps
-  gameState.playerSteps[gameState.playerName] = (gameState.playerSteps[gameState.playerName] || 0) + stepChange;
-  if (gameState.playerSteps[gameState.playerName] < 0) {
-    gameState.playerSteps[gameState.playerName] = 0;
+  if (!isCorrect) {
+    gameState.playerSteps[gameState.playerName] = (gameState.playerSteps[gameState.playerName] || 0) + 1;
   }
   
-  // Update player in players array
-  const playerIndex = gameState.players.findIndex(p => p.name === gameState.playerName);
-  if (playerIndex !== -1) {
-    gameState.players[playerIndex].steps = gameState.playerSteps[gameState.playerName];
-  }
+  // Update display
+  document.getElementById('resultTitle').textContent = isCorrect ? 'Correct!' : 'Incorrect!';
+  document.getElementById('resultMessage').textContent = isCorrect ? 
+    'Je hebt het juiste antwoord gegeven.' : 
+    'Je hebt het verkeerde antwoord gegeven en moet een stap zetten.';
   
-  // Display result
-  document.getElementById('resultMessage').textContent = resultMessage;
-  document.getElementById('stepsDisplayResult').textContent = gameState.playerSteps[gameState.playerName];
+  document.getElementById('stepsDisplayResult').textContent = gameState.playerSteps[gameState.playerName] || 0;
   
   // Save to Firebase
   try {
@@ -502,7 +514,7 @@ async function submitAnswer(answer) {
     showScreen('resultScreen');
   } catch (error) {
     console.error('Error saving answer:', error);
-    alert('Error saving your answer. Please try again.');
+    alert('Fout bij opslaan antwoord. Probeer het opnieuw.');
   }
 }
 
@@ -511,19 +523,13 @@ async function nextTurn() {
   // Move to next player
   gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
   
-  // Move to next question if we've gone through all players
+  // If we've gone through all players, move to next question
   if (gameState.currentPlayerIndex === 0) {
-    gameState.currentQuestionIndex++;
-    
-    // Check if game is over
-    if (gameState.currentQuestionIndex >= gameState.questions.length) {
-      endGame();
-      return;
-    }
+    gameState.currentQuestionIndex = (gameState.currentQuestionIndex + 1) % gameState.questions.length;
   }
   
-  // Save to Firebase
   try {
+    // Save to Firebase
     await saveGameToFirebase();
     
     // Update display
@@ -533,160 +539,76 @@ async function nextTurn() {
     showScreen('gameScreen');
   } catch (error) {
     console.error('Error updating turn:', error);
-    alert('Error updating turn. Please try again.');
+    alert('Fout bij bijwerken beurt. Probeer het opnieuw.');
   }
-}
-
-// End game
-function endGame() {
-  // Find winner (player with most steps)
-  let maxSteps = -1;
-  let winners = [];
-  
-  Object.entries(gameState.playerSteps).forEach(([name, steps]) => {
-    if (steps > maxSteps) {
-      maxSteps = steps;
-      winners = [name];
-    } else if (steps === maxSteps) {
-      winners.push(name);
-    }
-  });
-  
-  // Display winner
-  document.getElementById('resultTitle').textContent = 'Game Over!';
-  
-  if (winners.length === 1) {
-    document.getElementById('resultMessage').textContent = `${winners[0]} wins with ${maxSteps} steps!`;
-  } else {
-    document.getElementById('resultMessage').textContent = `It's a tie between ${winners.join(' and ')} with ${maxSteps} steps!`;
-  }
-  
-  // Change button text
-  document.getElementById('nextTurnBtn').style.display = 'none';
-  document.getElementById('newGameBtn').textContent = 'Back to Start';
-  
-  showScreen('resultScreen');
 }
 
 // Reset game
 function resetGame() {
-  // Clear game state
-  gameState.gameCode = '';
-  gameState.players = [];
-  gameState.currentPlayerIndex = 0;
-  gameState.currentQuestionIndex = 0;
-  gameState.fakemakerName = '';
-  gameState.fakemakerUnmasked = false;
-  gameState.playerName = '';
-  gameState.playerRole = '';
-  gameState.playerSteps = {};
-  gameState.gameStarted = false;
-  
-  // Stop listening for updates
-  stopListeningForUpdates();
-  
-  // Show start screen
-  showScreen('startScreen');
+  // Redirect to start screen
+  window.location.href = window.location.pathname;
 }
 
 // Save game to Firebase
 async function saveGameToFirebase() {
-  if (!gameState.gameCode) return;
-  
-  const gameRef = database.ref(`games/${gameState.gameCode}`);
-  
-  // Create a sanitized copy of the game state to ensure no undefined values
-  const sanitizedGameState = {
-    players: gameState.players || [],
-    currentPlayerIndex: gameState.currentPlayerIndex || 0,
-    currentQuestionIndex: gameState.currentQuestionIndex || 0,
-    fakemakerName: gameState.fakemakerName || '',
-    fakemakerUnmasked: gameState.fakemakerUnmasked === true,
-    playerSteps: gameState.playerSteps || {},
-    questions: gameState.questions || [],
-    gameStarted: gameState.gameStarted === true,
-    lastUpdated: firebase.database.ServerValue.TIMESTAMP
-  };
-  
-  return gameRef.set(sanitizedGameState);
+  try {
+    await database.ref(`games/${gameState.gameCode}`).set({
+      players: gameState.players,
+      currentPlayerIndex: gameState.currentPlayerIndex,
+      currentQuestionIndex: gameState.currentQuestionIndex,
+      fakemakerName: gameState.fakemakerName,
+      fakemakerUnmasked: gameState.fakemakerUnmasked,
+      playerSteps: gameState.playerSteps,
+      questions: gameState.questions,
+      gameStarted: gameState.gameStarted
+    });
+    return true;
+  } catch (error) {
+    console.error('Firebase save error:', error);
+    throw error;
+  }
 }
 
 // Load game from Firebase
 async function loadGameFromFirebase(gameCode) {
-  if (!gameCode) return null;
-  
-  const gameRef = database.ref(`games/${gameCode}`);
-  
   try {
-    const snapshot = await gameRef.once('value');
+    const snapshot = await database.ref(`games/${gameCode}`).once('value');
     return snapshot.val();
   } catch (error) {
-    console.error('Error loading game:', error);
-    return null;
+    console.error('Firebase load error:', error);
+    throw error;
   }
 }
 
 // Start listening for updates
 function startListeningForUpdates() {
-  if (!gameState.gameCode) return;
-  
-  const gameRef = database.ref(`games/${gameState.gameCode}`);
-  
-  // Listen for game updates
-  gameRef.on('value', (snapshot) => {
+  database.ref(`games/${gameState.gameCode}`).on('value', (snapshot) => {
     const data = snapshot.val();
     if (!data) return;
     
     // Update local game state
-    gameState.players = data.players || gameState.players;
-    gameState.currentPlayerIndex = data.currentPlayerIndex !== undefined ? data.currentPlayerIndex : gameState.currentPlayerIndex;
-    gameState.currentQuestionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : gameState.currentQuestionIndex;
-    gameState.fakemakerName = data.fakemakerName || gameState.fakemakerName;
-    gameState.fakemakerUnmasked = data.fakemakerUnmasked !== undefined ? data.fakemakerUnmasked : gameState.fakemakerUnmasked;
-    gameState.playerSteps = data.playerSteps || gameState.playerSteps;
-    gameState.questions = data.questions || gameState.questions;
-    gameState.gameStarted = data.gameStarted !== undefined ? data.gameStarted : gameState.gameStarted;
+    gameState.players = data.players || [];
+    gameState.currentPlayerIndex = data.currentPlayerIndex || 0;
+    gameState.currentQuestionIndex = data.currentQuestionIndex || 0;
+    gameState.fakemakerName = data.fakemakerName || '';
+    gameState.fakemakerUnmasked = data.fakemakerUnmasked || false;
+    gameState.playerSteps = data.playerSteps || {};
+    gameState.questions = data.questions || [];
+    gameState.gameStarted = data.gameStarted || false;
     
-    // Update UI based on game state
-    if (gameState.gameStarted) {
-      // If game has started and we're on role confirmation screen, move to game screen
-      if (document.getElementById('roleConfirmationScreen').classList.contains('active')) {
-        updateGameDisplay();
-        showScreen('gameScreen');
-      } else if (document.getElementById('gameScreen').classList.contains('active')) {
-        // Update game display if we're already on game screen
-        updateGameDisplay();
-      }
-    } else if (document.getElementById('hostGameScreen').classList.contains('active')) {
-      // Update player list if we're on host screen
+    // Update UI based on current screen
+    const currentScreen = Array.from(screens).find(screen => screen.classList.contains('active'))?.id;
+    
+    if (currentScreen === 'hostGameScreen') {
       updatePlayerList();
+    } else if (currentScreen === 'roleConfirmationScreen' && gameState.gameStarted) {
+      // Game started while player was waiting
+      updateGameDisplay();
+      showScreen('gameScreen');
+    } else if (currentScreen === 'gameScreen') {
+      updateGameDisplay();
     }
   });
-  
-  // Update connection status
-  const connectedRef = database.ref('.info/connected');
-  connectedRef.on('value', (snap) => {
-    if (snap.val() === true) {
-      document.getElementById('connectionIndicator').classList.remove('offline');
-      document.getElementById('connectionIndicator').classList.remove('connecting');
-      document.getElementById('connectionStatus').textContent = 'Connected';
-    } else {
-      document.getElementById('connectionIndicator').classList.add('connecting');
-      document.getElementById('connectionIndicator').classList.remove('offline');
-      document.getElementById('connectionStatus').textContent = 'Connecting...';
-    }
-  });
-}
-
-// Stop listening for updates
-function stopListeningForUpdates() {
-  if (!gameState.gameCode) return;
-  
-  const gameRef = database.ref(`games/${gameState.gameCode}`);
-  gameRef.off();
-  
-  const connectedRef = database.ref('.info/connected');
-  connectedRef.off();
 }
 
 // Check for game code in URL
@@ -700,10 +622,8 @@ function checkForGameCodeInURL() {
   }
 }
 
-// Share game link
+// Share game
 function shareGame() {
-  if (!gameState.gameCode) return;
-  
   const gameUrl = `${window.location.origin}${window.location.pathname}?game=${gameState.gameCode}`;
   
   if (navigator.share) {
@@ -713,35 +633,33 @@ function shareGame() {
       url: gameUrl
     })
     .then(() => {
-      document.getElementById('shareSuccessMessage').textContent = 'Game link shared successfully!';
+      document.getElementById('shareSuccessMessage').textContent = 'Link gedeeld!';
       document.getElementById('shareSuccessMessage').classList.remove('hidden');
-      
       setTimeout(() => {
         document.getElementById('shareSuccessMessage').classList.add('hidden');
       }, 3000);
     })
     .catch(error => {
       console.error('Error sharing:', error);
+      copyToClipboard(gameUrl);
     });
   } else {
     copyToClipboard(gameUrl);
-    document.getElementById('shareSuccessMessage').textContent = 'Game link copied to clipboard!';
-    document.getElementById('shareSuccessMessage').classList.remove('hidden');
-    
-    setTimeout(() => {
-      document.getElementById('shareSuccessMessage').classList.add('hidden');
-    }, 3000);
   }
 }
 
-// QR code generation function removed
-
 // Copy to clipboard
 function copyToClipboard(text) {
-  const textarea = document.createElement('textarea');
-  textarea.value = text;
-  document.body.appendChild(textarea);
-  textarea.select();
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  document.body.appendChild(textArea);
+  textArea.select();
   document.execCommand('copy');
-  document.body.removeChild(textarea);
+  document.body.removeChild(textArea);
+  
+  document.getElementById('shareSuccessMessage').textContent = 'Link gekopieerd naar klembord!';
+  document.getElementById('shareSuccessMessage').classList.remove('hidden');
+  setTimeout(() => {
+    document.getElementById('shareSuccessMessage').classList.add('hidden');
+  }, 3000);
 }

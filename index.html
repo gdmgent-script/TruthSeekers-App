@@ -14,14 +14,28 @@
     <div class="container">
         <!-- Start Screen -->
         <div id="startScreen" class="screen active">
-            <div class="logo-container">
-                <img src="Truth_seekers_logo.png" alt="Truth Seekers Logo" class="logo">
+            <div class="video-container">
+                <div id="videoThumbnail" class="video-thumbnail">
+                    <img src="Truth_seekers_logo.png" alt="Video Thumbnail" class="thumbnail-img">
+                    <div class="play-button">▶</div>
+                </div>
             </div>
             <h1>CTRL+P</h1>
             <p>Ontmasker de Fakemaker!</p>
             <div class="button-container">
                 <button id="hostGameBtn" class="primary-button">Spel Hosten</button>
                 <button id="goToJoinBtn" class="secondary-button">Deelnemen</button>
+            </div>
+            
+            <!-- Video Modal -->
+            <div id="videoModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <video id="modalVideo" controls>
+                        <source src="video.mp4" type="video/mp4">
+                        Je browser ondersteunt geen video's.
+                    </video>
+                </div>
             </div>
         </div>
 
