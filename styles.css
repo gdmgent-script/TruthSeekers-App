@@ -251,11 +251,36 @@ button:disabled {
     background-color: #f44336;
 }
 
+/* Multiple choice buttons */
+.multiple-choice-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.answer-button.option {
+    background-color: #2196F3;
+    color: white;
+    min-width: 80px;
+    margin: 0 10px;
+}
+
+.answer-button.option:hover {
+    background-color: #0b7dda;
+}
+
 /* Result Screen */
 #resultTitle {
     font-size: 2.5rem;
     margin-bottom: 20px;
     color: #ffcc00;
+}
+
+#stepChange {
+    font-size: 1.5rem;
+    margin: 15px 0;
 }
 
 /* Error and Success Messages */
@@ -278,8 +303,6 @@ button:disabled {
 .hidden {
     display: none;
 }
-
-/* QR Code removed */
 
 /* Connection Status */
 .connection-status {
@@ -377,6 +400,10 @@ button:disabled {
     
     .answer-button {
         width: 100%;
+    }
+    
+    .multiple-choice-buttons {
+        flex-direction: column;
     }
     
     .connection-status {

@@ -123,7 +123,7 @@
             
             <div id="videoContainer" class="media-container hidden">
                 <video id="questionVideo" controls>
-                    <source src="" type="video/mp4">
+                    <source id="videoSource" src="" type="video/mp4">
                     Je browser ondersteunt geen video's.
                 </video>
             </div>
@@ -132,9 +132,18 @@
                 <p id="externalActionPrompt"></p>
             </div>
             
-            <div class="answer-buttons">
+            <!-- True/False buttons for real/fake questions -->
+            <div id="trueFalseButtons" class="answer-buttons">
                 <button id="trueBtn" class="answer-button true">Echt</button>
                 <button id="falseBtn" class="answer-button false">Fake</button>
+            </div>
+            
+            <!-- Multiple choice buttons for multiple choice questions -->
+            <div id="multipleChoiceButtons" class="multiple-choice-buttons hidden">
+                <button id="option0" class="answer-button option">1</button>
+                <button id="option1" class="answer-button option">2</button>
+                <button id="option2" class="answer-button option">3</button>
+                <button id="option3" class="answer-button option">4</button>
             </div>
         </div>
 
@@ -143,6 +152,7 @@
             <h1 id="resultTitle">Resultaat</h1>
             <p id="resultMessage"></p>
             <p>Jouw stappen: <span id="stepsDisplayResult" class="highlight">0</span></p>
+            <p id="stepChange" class="highlight"></p>
             <button id="nextTurnBtn" class="primary-button">Volgende Beurt</button>
             <button id="newGameBtn" class="secondary-button">Nieuw Spel</button>
         </div>
