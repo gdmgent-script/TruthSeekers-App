@@ -11,7 +11,8 @@ const gameState = {
   fakemakerUnmasked: false,
   playerName: '',
   playerRole: '',
-  playerSteps: {}
+  playerSteps: {},
+  gameStarted: false  // Initialize gameStarted to false explicitly
 };
 
 // Role codes
@@ -136,6 +137,9 @@ async function createGame() {
   
   // Initialize player steps
   gameState.playerSteps[hostName] = 0;
+  
+  // Ensure gameStarted is explicitly set to false
+  gameState.gameStarted = false;
 
   try {
     // Save game to Firebase
@@ -199,7 +203,7 @@ async function joinGame() {
     gameState.fakemakerUnmasked = gameData.fakemakerUnmasked || false;
     gameState.playerSteps = gameData.playerSteps || {};
     gameState.questions = gameData.questions || [];
-    gameState.gameStarted = gameData.gameStarted || false;
+    gameState.gameStarted = gameData.gameStarted === true; // Ensure boolean value
     
     // Add new player
     const newPlayer = {
@@ -671,17 +675,23 @@ function checkForGameCodeInURL() {
 // Save game state to Firebase
 async function saveGameToFirebase() {
   try {
-    await database.ref(`games/${gameState.gameCode}`).set({
-      players: gameState.players,
-      currentPlayerIndex: gameState.currentPlayerIndex,
-      currentQuestionIndex: gameState.currentQuestionIndex,
-      fakemakerName: gameState.fakemakerName,
-      fakemakerUnmasked: gameState.fakemakerUnmasked,
-      playerSteps: gameState.playerSteps,
-      questions: gameState.questions,
-      gameStarted: gameState.gameStarted,
+    // Ensure all properties are defined and not undefined
+    const gameData = {
+      players: gameState.players || [],
+      currentPlayerIndex: gameState.currentPlayerIndex || 0,
+      currentQuestionIndex: gameState.currentQuestionIndex || 0,
+      fakemakerName: gameState.fakemakerName || '',
+      fakemakerUnmasked: gameState.fakemakerUnmasked === true,
+      playerSteps: gameState.playerSteps || {},
+      questions: gameState.questions || [],
+      gameStarted: gameState.gameStarted === true,
       lastUpdated: firebase.database.ServerValue.TIMESTAMP
-    });
+    };
+    
+    // Log the data being saved for debugging
+    console.log('Saving game data:', JSON.stringify(gameData));
+    
+    await database.ref(`games/${gameState.gameCode}`).set(gameData);
     return true;
   } catch (error) {
     console.error('Error saving game to Firebase:', error);
@@ -707,14 +717,14 @@ function startListeningForUpdates() {
     if (!data) return;
     
     // Update local game state
-    gameState.players = data.players || gameState.players;
-    gameState.currentPlayerIndex = data.currentPlayerIndex !== undefined ? data.currentPlayerIndex : gameState.currentPlayerIndex;
-    gameState.currentQuestionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : gameState.currentQuestionIndex;
-    gameState.fakemakerName = data.fakemakerName || gameState.fakemakerName;
-    gameState.fakemakerUnmasked = data.fakemakerUnmasked !== undefined ? data.fakemakerUnmasked : gameState.fakemakerUnmasked;
-    gameState.playerSteps = data.playerSteps || gameState.playerSteps;
-    gameState.questions = data.questions || gameState.questions;
-    gameState.gameStarted = data.gameStarted !== undefined ? data.gameStarted : gameState.gameStarted;
+    gameState.players = data.players || [];
+    gameState.currentPlayerIndex = data.currentPlayerIndex !== undefined ? data.currentPlayerIndex : 0;
+    gameState.currentQuestionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : 0;
+    gameState.fakemakerName = data.fakemakerName || '';
+    gameState.fakemakerUnmasked = data.fakemakerUnmasked === true;
+    gameState.playerSteps = data.playerSteps || {};
+    gameState.questions = data.questions || [];
+    gameState.gameStarted = data.gameStarted === true;
     
     // Update UI based on current screen
     const activeScreen = document.querySelector('.screen.active').id;
