@@ -12,7 +12,8 @@ const gameState = {
   playerName: '',
   playerRole: '',
   playerSteps: {},
-  gameStarted: false  // Initialize gameStarted to false explicitly
+  gameStarted: false,  // Initialize gameStarted to false explicitly
+  currentQuestionVisible: false  // Track if question is visible to all players
 };
 
 // Role codes
@@ -51,6 +52,7 @@ function shuffleQuestions() {
     const j = Math.floor(Math.random() * (i + 1));
     [gameState.questions[i], gameState.questions[j]] = [gameState.questions[j], gameState.questions[i]];
   }
+  console.log('Questions shuffled');
 }
 
 // Initialize
@@ -83,7 +85,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('trueBtn').addEventListener('click', () => submitAnswer(true));
   document.getElementById('falseBtn').addEventListener('click', () => submitAnswer(false));
   document.getElementById('nextTurnBtn').addEventListener('click', nextTurn);
-  document.getElementById('newGameBtn').addEventListener('click', resetGame);
+  
+  // Remove the New Game button event listener as it's being hidden
+  // document.getElementById('newGameBtn').addEventListener('click', resetGame);
+  
   document.getElementById('shareGameBtn').addEventListener('click', shareGame);
   
   // Add event listeners for multiple choice options
@@ -101,7 +106,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     input.setAttribute('autocapitalize', 'characters');
     input.setAttribute('autocomplete', 'off');
   });
+  
+  // Hide step count displays
+  hideStepCountDisplays();
 });
+
+// Hide step count displays
+function hideStepCountDisplays() {
+  // Hide step count in game header
+  const stepsDisplayContainer = document.querySelector('.player-info p:nth-child(3)');
+  if (stepsDisplayContainer) {
+    stepsDisplayContainer.style.display = 'none';
+  }
+  
+  // Hide step count in result screen
+  const stepsDisplayResultContainer = document.querySelector('#resultScreen p:nth-child(3)');
+  if (stepsDisplayResultContainer) {
+    stepsDisplayResultContainer.style.display = 'none';
+  }
+}
 
 // Show a specific screen
 function showScreen(screenId) {
@@ -109,6 +132,11 @@ function showScreen(screenId) {
     screen.classList.remove('active');
   });
   document.getElementById(screenId).classList.add('active');
+  
+  // Hide New Game button on result screen
+  if (screenId === 'resultScreen') {
+    document.getElementById('newGameBtn').style.display = 'none';
+  }
 }
 
 // Generate a random game code
@@ -147,6 +175,7 @@ async function createGame() {
   
   // Ensure gameStarted is explicitly set to false
   gameState.gameStarted = false;
+  gameState.currentQuestionVisible = false;
 
   try {
     // Save game to Firebase
@@ -220,6 +249,7 @@ async function joinGame() {
     gameState.playerSteps = gameData.playerSteps || {};
     gameState.questions = gameData.questions || [];
     gameState.gameStarted = gameData.gameStarted === true; // Ensure boolean value
+    gameState.currentQuestionVisible = gameData.currentQuestionVisible === true;
     
     // Add new player
     const newPlayer = {
@@ -422,10 +452,6 @@ function updateGameDisplay() {
   // Update current player display
   document.getElementById('currentPlayerDisplay').textContent = currentPlayer.name;
   
-  // Update steps display
-  const steps = gameState.playerSteps[gameState.playerName] || 0;
-  document.getElementById('stepsDisplay').textContent = steps;
-  
   // Show role name
   document.getElementById('roleName').textContent = gameState.playerRole;
   
@@ -444,6 +470,11 @@ function updateGameDisplay() {
     document.getElementById('answerInfo').classList.add('hidden');
   }
   
+  // If question is visible to all players, show it
+  if (gameState.currentQuestionVisible) {
+    displayCurrentQuestion();
+  }
+  
   // Show/hide turn info based on whether it's the player's turn
   const yourTurnInfo = document.getElementById('yourTurnInfo');
   if (currentPlayer.name === gameState.playerName) {
@@ -453,8 +484,8 @@ function updateGameDisplay() {
   }
 }
 
-// Show question
-function showQuestion() {
+// Display current question to all players
+function displayCurrentQuestion() {
   const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
   
   document.getElementById('questionNumber').textContent = `Vraag ${gameState.currentQuestionIndex + 1}`;
@@ -473,26 +504,45 @@ function showQuestion() {
   if (currentQuestion.type === 'image' && currentQuestion.imagePath) {
     document.getElementById('questionImage').src = currentQuestion.imagePath;
     document.getElementById('imageContainer').classList.remove('hidden');
-    document.getElementById('trueFalseButtons').classList.remove('hidden');
   } else if (currentQuestion.type === 'video' && currentQuestion.videoUrl) {
     const videoSource = document.getElementById('videoSource');
     videoSource.src = currentQuestion.videoUrl;
     document.getElementById('questionVideo').load(); // Reload the video with new source
     document.getElementById('videoContainer').classList.remove('hidden');
-    document.getElementById('trueFalseButtons').classList.remove('hidden');
-  } else if (currentQuestion.type === 'multiple_choice' && currentQuestion.options) {
-    // Set up multiple choice options
-    for (let i = 0; i < currentQuestion.options.length; i++) {
-      document.getElementById(`option${i}`).textContent = `${i + 1}. ${currentQuestion.options[i]}`;
-    }
-    document.getElementById('multipleChoiceButtons').classList.remove('hidden');
   } else if (currentQuestion.type === 'external_action' && currentQuestion.externalActionPrompt) {
     document.getElementById('externalActionPrompt').textContent = currentQuestion.externalActionPrompt;
     document.getElementById('externalActionContainer').classList.remove('hidden');
-    document.getElementById('trueFalseButtons').classList.remove('hidden');
+  }
+  
+  // Only show answer buttons if it's the current player's turn
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  if (currentPlayer.name === gameState.playerName) {
+    if (currentQuestion.type === 'multiple_choice' && currentQuestion.options) {
+      // Set up multiple choice options
+      for (let i = 0; i < currentQuestion.options.length; i++) {
+        document.getElementById(`option${i}`).textContent = `${i + 1}. ${currentQuestion.options[i]}`;
+      }
+      document.getElementById('multipleChoiceButtons').classList.remove('hidden');
+    } else {
+      document.getElementById('trueFalseButtons').classList.remove('hidden');
+    }
   }
   
   showScreen('questionScreen');
+}
+
+// Show question
+async function showQuestion() {
+  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  
+  // Set question as visible to all players
+  gameState.currentQuestionVisible = true;
+  
+  // Save to Firebase so all players can see the question
+  await saveGameToFirebase();
+  
+  // Display the question
+  displayCurrentQuestion();
 }
 
 // Submit true/false answer
@@ -588,7 +638,6 @@ function showResult(isCorrect, stepsChange) {
   }
   
   document.getElementById('resultMessage').textContent = correctAnswerText;
-  document.getElementById('stepsDisplayResult').textContent = gameState.playerSteps[gameState.playerName];
   
   // Show step change
   const stepChangeElement = document.getElementById('stepChange');
@@ -603,11 +652,17 @@ function showResult(isCorrect, stepsChange) {
     stepChangeElement.style.color = '#ffcc00'; // Yellow
   }
   
+  // Hide the New Game button
+  document.getElementById('newGameBtn').style.display = 'none';
+  
   showScreen('resultScreen');
 }
 
 // Next turn
 async function nextTurn() {
+  // Reset question visibility for next turn
+  gameState.currentQuestionVisible = false;
+  
   // Move to next player
   gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
   
@@ -703,6 +758,7 @@ async function saveGameToFirebase() {
       playerSteps: gameState.playerSteps || {},
       questions: gameState.questions || [],
       gameStarted: gameState.gameStarted === true,
+      currentQuestionVisible: gameState.currentQuestionVisible === true,
       lastUpdated: firebase.database.ServerValue.TIMESTAMP
     };
     
@@ -755,6 +811,7 @@ function startListeningForUpdates() {
     gameState.playerSteps = data.playerSteps || {};
     gameState.questions = data.questions || [];
     gameState.gameStarted = data.gameStarted === true;
+    gameState.currentQuestionVisible = data.currentQuestionVisible === true;
     
     // Update UI based on current screen
     const activeScreen = document.querySelector('.screen.active')?.id;
@@ -769,6 +826,9 @@ function startListeningForUpdates() {
       showScreen('gameScreen');
     } else if (activeScreen === 'gameScreen') {
       updateGameDisplay();
+    } else if (activeScreen === 'questionScreen' && gameState.currentQuestionVisible) {
+      // If question is visible and we're not already on question screen, show it
+      displayCurrentQuestion();
     }
   }, (error) => {
     console.error('Error in Firebase listener:', error);
