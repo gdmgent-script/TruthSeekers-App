@@ -109,7 +109,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   // Hide step count displays
   hideStepCountDisplays();
+  
+  // Setup PDF display for image questions
+  setupPdfDisplay();
 });
+
+// Setup PDF display for image questions
+function setupPdfDisplay() {
+  // Add PDF.js library if not already included
+  if (!window.pdfjsLib) {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js';
+    document.head.appendChild(script);
+  }
+}
+
+// Display PDF in image container
+function displayPdf(url, container) {
+  // If it's a PDF, use an iframe instead of img
+  if (url.toLowerCase().endsWith('.pdf')) {
+    // Clear container
+    container.innerHTML = '';
+    
+    // Create iframe for PDF
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.width = '100%';
+    iframe.style.height = '500px';
+    iframe.style.border = 'none';
+    
+    container.appendChild(iframe);
+    return true;
+  }
+  return false;
+}
 
 // Hide step count displays
 function hideStepCountDisplays() {
@@ -502,13 +535,54 @@ function displayCurrentQuestion() {
   
   // Show appropriate media based on question type
   if (currentQuestion.type === 'image' && currentQuestion.imagePath) {
-    document.getElementById('questionImage').src = currentQuestion.imagePath;
-    document.getElementById('imageContainer').classList.remove('hidden');
+    const imageContainer = document.getElementById('imageContainer');
+    
+    // Check if it's a PDF and display accordingly
+    if (currentQuestion.imagePath.toLowerCase().endsWith('.pdf')) {
+      displayPdf(currentQuestion.imagePath, imageContainer);
+    } else {
+      // Regular image
+      document.getElementById('questionImage').src = currentQuestion.imagePath;
+    }
+    
+    imageContainer.classList.remove('hidden');
   } else if (currentQuestion.type === 'video' && currentQuestion.videoUrl) {
-    const videoSource = document.getElementById('videoSource');
-    videoSource.src = currentQuestion.videoUrl;
-    document.getElementById('questionVideo').load(); // Reload the video with new source
-    document.getElementById('videoContainer').classList.remove('hidden');
+    const videoContainer = document.getElementById('videoContainer');
+    
+    if (currentQuestion.videoUrl.includes('youtube.com') || currentQuestion.videoUrl.includes('youtu.be')) {
+      // YouTube video - create iframe
+      videoContainer.innerHTML = '';
+      const videoId = extractYouTubeId(currentQuestion.videoUrl);
+      
+      if (videoId) {
+        const iframe = document.createElement('iframe');
+        iframe.width = '100%';
+        iframe.height = '315';
+        iframe.src = `https://www.youtube.com/embed/${videoId}`;
+        iframe.frameBorder = '0';
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+        iframe.allowFullscreen = true;
+        
+        videoContainer.appendChild(iframe);
+      } else {
+        // Fallback to regular video player if YouTube ID extraction fails
+        const videoSource = document.getElementById('videoSource');
+        videoSource.src = currentQuestion.videoUrl;
+        document.getElementById('questionVideo').load();
+      }
+    } else {
+      // Regular video
+      const videoSource = document.getElementById('videoSource');
+      videoSource.src = currentQuestion.videoUrl;
+      document.getElementById('questionVideo').load();
+    }
+    
+    videoContainer.classList.remove('hidden');
+  } else if (currentQuestion.type === 'multiple_choice' && currentQuestion.options) {
+    // Set up multiple choice options
+    for (let i = 0; i < currentQuestion.options.length; i++) {
+      document.getElementById(`option${i}`).textContent = `${i + 1}. ${currentQuestion.options[i]}`;
+    }
   } else if (currentQuestion.type === 'external_action' && currentQuestion.externalActionPrompt) {
     document.getElementById('externalActionPrompt').textContent = currentQuestion.externalActionPrompt;
     document.getElementById('externalActionContainer').classList.remove('hidden');
@@ -518,10 +592,6 @@ function displayCurrentQuestion() {
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
   if (currentPlayer.name === gameState.playerName) {
     if (currentQuestion.type === 'multiple_choice' && currentQuestion.options) {
-      // Set up multiple choice options
-      for (let i = 0; i < currentQuestion.options.length; i++) {
-        document.getElementById(`option${i}`).textContent = `${i + 1}. ${currentQuestion.options[i]}`;
-      }
       document.getElementById('multipleChoiceButtons').classList.remove('hidden');
     } else {
       document.getElementById('trueFalseButtons').classList.remove('hidden');
@@ -529,6 +599,13 @@ function displayCurrentQuestion() {
   }
   
   showScreen('questionScreen');
+}
+
+// Extract YouTube video ID from URL
+function extractYouTubeId(url) {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
 }
 
 // Show question
@@ -765,7 +842,7 @@ async function saveGameToFirebase() {
     // Log the data being saved for debugging
     console.log('Saving game data to Firebase, code:', gameState.gameCode);
     
-    // Use set with merge option to avoid overwriting existing data
+    // Use update instead of set to be more robust
     await database.ref(`games/${gameState.gameCode}`).update(gameData);
     console.log('Game data saved successfully');
     return true;
@@ -779,7 +856,17 @@ async function saveGameToFirebase() {
 async function loadGameFromFirebase(gameCode) {
   try {
     console.log('Loading game data from Firebase, code:', gameCode);
-    const snapshot = await database.ref(`games/${gameCode}`).once('value');
+    
+    // Add timeout to prevent indefinite waiting
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Firebase request timed out')), 10000)
+    );
+    
+    const dataPromise = database.ref(`games/${gameCode}`).once('value');
+    
+    // Race between timeout and actual data fetch
+    const snapshot = await Promise.race([dataPromise, timeoutPromise]);
+    
     const data = snapshot.val();
     console.log('Game data loaded:', data ? 'success' : 'not found');
     return data;
@@ -792,6 +879,9 @@ async function loadGameFromFirebase(gameCode) {
 // Start listening for updates
 function startListeningForUpdates() {
   console.log('Starting to listen for updates, game code:', gameState.gameCode);
+  
+  // Remove any existing listeners first to prevent duplicates
+  database.ref(`games/${gameState.gameCode}`).off();
   
   database.ref(`games/${gameState.gameCode}`).on('value', snapshot => {
     const data = snapshot.val();
