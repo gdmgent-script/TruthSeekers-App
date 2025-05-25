@@ -94,6 +94,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Check for game code in URL
   checkForGameCodeInURL();
+  
+  // Fix for mobile input fields
+  const inputFields = document.querySelectorAll('input[type="text"]');
+  inputFields.forEach(input => {
+    input.setAttribute('autocapitalize', 'characters');
+    input.setAttribute('autocomplete', 'off');
+  });
 });
 
 // Show a specific screen
@@ -179,17 +186,26 @@ async function joinGame() {
   document.getElementById('submitJoinBtn').textContent = 'Deelnemen...';
   
   try {
+    console.log('Attempting to join game with code:', gameCode);
+    
     // Try to load game from Firebase
     const gameData = await loadGameFromFirebase(gameCode);
     
     if (!gameData) {
+      console.error('Game not found with code:', gameCode);
       showError('joinErrorMessage', 'Spel niet gevonden. Controleer de code en probeer opnieuw.');
+      document.getElementById('submitJoinBtn').disabled = false;
+      document.getElementById('submitJoinBtn').textContent = 'Deelnemen';
       return;
     }
+    
+    console.log('Game data loaded:', gameData);
     
     // Check if name is already taken
     if (gameData.players && gameData.players.some(p => p.name === playerName)) {
       showError('joinErrorMessage', 'Naam is al in gebruik. Kies een andere naam.');
+      document.getElementById('submitJoinBtn').disabled = false;
+      document.getElementById('submitJoinBtn').textContent = 'Deelnemen';
       return;
     }
     
@@ -197,10 +213,10 @@ async function joinGame() {
     gameState.gameCode = gameCode;
     gameState.playerName = playerName;
     gameState.players = gameData.players || [];
-    gameState.currentPlayerIndex = gameData.currentPlayerIndex || 0;
-    gameState.currentQuestionIndex = gameData.currentQuestionIndex || 0;
+    gameState.currentPlayerIndex = typeof gameData.currentPlayerIndex === 'number' ? gameData.currentPlayerIndex : 0;
+    gameState.currentQuestionIndex = typeof gameData.currentQuestionIndex === 'number' ? gameData.currentQuestionIndex : 0;
     gameState.fakemakerName = gameData.fakemakerName || '';
-    gameState.fakemakerUnmasked = gameData.fakemakerUnmasked || false;
+    gameState.fakemakerUnmasked = gameData.fakemakerUnmasked === true;
     gameState.playerSteps = gameData.playerSteps || {};
     gameState.questions = gameData.questions || [];
     gameState.gameStarted = gameData.gameStarted === true; // Ensure boolean value
@@ -217,6 +233,8 @@ async function joinGame() {
     
     // Initialize player steps
     gameState.playerSteps[playerName] = 0;
+    
+    console.log('Saving updated game state after joining');
     
     // Save updated game state
     await saveGameToFirebase();
@@ -678,8 +696,8 @@ async function saveGameToFirebase() {
     // Ensure all properties are defined and not undefined
     const gameData = {
       players: gameState.players || [],
-      currentPlayerIndex: gameState.currentPlayerIndex || 0,
-      currentQuestionIndex: gameState.currentQuestionIndex || 0,
+      currentPlayerIndex: typeof gameState.currentPlayerIndex === 'number' ? gameState.currentPlayerIndex : 0,
+      currentQuestionIndex: typeof gameState.currentQuestionIndex === 'number' ? gameState.currentQuestionIndex : 0,
       fakemakerName: gameState.fakemakerName || '',
       fakemakerUnmasked: gameState.fakemakerUnmasked === true,
       playerSteps: gameState.playerSteps || {},
@@ -689,9 +707,11 @@ async function saveGameToFirebase() {
     };
     
     // Log the data being saved for debugging
-    console.log('Saving game data:', JSON.stringify(gameData));
+    console.log('Saving game data to Firebase, code:', gameState.gameCode);
     
-    await database.ref(`games/${gameState.gameCode}`).set(gameData);
+    // Use set with merge option to avoid overwriting existing data
+    await database.ref(`games/${gameState.gameCode}`).update(gameData);
+    console.log('Game data saved successfully');
     return true;
   } catch (error) {
     console.error('Error saving game to Firebase:', error);
@@ -702,8 +722,11 @@ async function saveGameToFirebase() {
 // Load game state from Firebase
 async function loadGameFromFirebase(gameCode) {
   try {
+    console.log('Loading game data from Firebase, code:', gameCode);
     const snapshot = await database.ref(`games/${gameCode}`).once('value');
-    return snapshot.val();
+    const data = snapshot.val();
+    console.log('Game data loaded:', data ? 'success' : 'not found');
+    return data;
   } catch (error) {
     console.error('Error loading game from Firebase:', error);
     throw error;
@@ -712,14 +735,21 @@ async function loadGameFromFirebase(gameCode) {
 
 // Start listening for updates
 function startListeningForUpdates() {
+  console.log('Starting to listen for updates, game code:', gameState.gameCode);
+  
   database.ref(`games/${gameState.gameCode}`).on('value', snapshot => {
     const data = snapshot.val();
-    if (!data) return;
+    if (!data) {
+      console.log('No data received in update');
+      return;
+    }
+    
+    console.log('Received update from Firebase');
     
     // Update local game state
     gameState.players = data.players || [];
-    gameState.currentPlayerIndex = data.currentPlayerIndex !== undefined ? data.currentPlayerIndex : 0;
-    gameState.currentQuestionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : 0;
+    gameState.currentPlayerIndex = typeof data.currentPlayerIndex === 'number' ? data.currentPlayerIndex : 0;
+    gameState.currentQuestionIndex = typeof data.currentQuestionIndex === 'number' ? data.currentQuestionIndex : 0;
     gameState.fakemakerName = data.fakemakerName || '';
     gameState.fakemakerUnmasked = data.fakemakerUnmasked === true;
     gameState.playerSteps = data.playerSteps || {};
@@ -727,17 +757,21 @@ function startListeningForUpdates() {
     gameState.gameStarted = data.gameStarted === true;
     
     // Update UI based on current screen
-    const activeScreen = document.querySelector('.screen.active').id;
+    const activeScreen = document.querySelector('.screen.active')?.id;
+    console.log('Active screen:', activeScreen);
     
     if (activeScreen === 'hostGameScreen') {
       updatePlayerList();
     } else if (activeScreen === 'roleConfirmationScreen' && gameState.gameStarted) {
       // Game started while player was waiting, join immediately
+      console.log('Game started while waiting, joining game');
       updateGameDisplay();
       showScreen('gameScreen');
     } else if (activeScreen === 'gameScreen') {
       updateGameDisplay();
     }
+  }, (error) => {
+    console.error('Error in Firebase listener:', error);
   });
   
   // Set up connection status indicator
@@ -746,6 +780,8 @@ function startListeningForUpdates() {
     const connected = snap.val();
     const indicator = document.getElementById('connectionIndicator');
     const status = document.getElementById('connectionStatus');
+    
+    console.log('Connection status:', connected ? 'connected' : 'disconnected');
     
     if (connected) {
       indicator.classList.remove('offline', 'connecting');
