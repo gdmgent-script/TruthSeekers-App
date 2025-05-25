@@ -56,12 +56,13 @@ function shuffleQuestions() {
 document.addEventListener('DOMContentLoaded', async () => {
   // Load questions
   try {
-    const response = await fetch('questions.json');
+    const response = await fetch('./questions.json');
     if (!response.ok) {
-      console.log('Questions file not found, creating default questions');
+      console.error('Questions file not found, creating default questions');
       gameState.questions = [];
     } else {
       gameState.questions = await response.json();
+      console.log('Questions loaded successfully:', gameState.questions.length);
       shuffleQuestions();
     }
   } catch (error) {
@@ -139,6 +140,7 @@ async function createGame() {
   try {
     // Save game to Firebase
     await saveGameToFirebase();
+    console.log('Game created successfully with code:', gameState.gameCode);
     
     // Start listening for updates
     startListeningForUpdates();

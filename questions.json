@@ -4,7 +4,7 @@
     "type": "image",
     "content": "Is dit nieuwsartikel over Trump echt of nep?",
     "answer": false,
-    "imagePath": "vraag1Trump.pdf"
+    "imagePath": "./vraag1Trump.pdf"
   },
   {
     "id": 2,
@@ -59,7 +59,7 @@
     "type": "image",
     "content": "Is deze sociale media post over een jong meisje echt of nep?",
     "answer": false,
-    "imagePath": "vraag2Meisje.pdf"
+    "imagePath": "./vraag2Meisje.pdf"
   },
   {
     "id": 7,
@@ -73,69 +73,69 @@
     "type": "image",
     "content": "Is dit nieuwsartikel over extremisten die videogames misbruiken echt of nep?",
     "answer": true,
-    "imagePath": "vraag3Extremisten.pdf"
+    "imagePath": "./vraag3Extremisten.pdf"
   },
   {
     "id": 9,
     "type": "image",
     "content": "Is dit nieuwsartikel over het Vaticaan dat verbouwd wordt echt of nep?",
     "answer": false,
-    "imagePath": "vraag4Vaticaan.pdf"
+    "imagePath": "./vraag4Vaticaan.pdf"
   },
   {
     "id": 10,
     "type": "image",
     "content": "Is deze sociale media post over Ruben Van Gucht die zichzelf 'polymobiel' noemt echt of nep?",
     "answer": false,
-    "imagePath": "vraag5Ruben.pdf"
+    "imagePath": "./vraag5Ruben.pdf"
   },
   {
     "id": 11,
     "type": "image",
     "content": "Is deze sociale media post van Bart De Wever echt of nep?",
     "answer": false,
-    "imagePath": "vraag6Bart.pdf"
+    "imagePath": "./vraag6Bart.pdf"
   },
   {
     "id": 12,
     "type": "image",
     "content": "Is dit nieuwsartikel over een Duitse toerist met een Romeinse zuil op een e-step echt of nep?",
     "answer": true,
-    "imagePath": "vraag7Zuil.pdf"
+    "imagePath": "./vraag7Zuil.pdf"
   },
   {
     "id": 13,
     "type": "image",
     "content": "Is dit nieuwsartikel over een containerschip in iemands tuin echt of nep?",
     "answer": true,
-    "imagePath": "vraag8Schip.pdf"
+    "imagePath": "./vraag8Schip.pdf"
   },
   {
     "id": 14,
     "type": "image",
     "content": "Is dit artikel van The Onion over een tiener die Peter Gabriel omhoog houdt echt of nep?",
     "answer": false,
-    "imagePath": "vraag9Peter.pdf"
+    "imagePath": "./vraag9Peter.pdf"
   },
   {
     "id": 15,
     "type": "image",
     "content": "Is dit nieuwsartikel over Elon Musk die afstand neemt van het vaderschap echt of nep?",
     "answer": false,
-    "imagePath": "vraag10Elon.pdf"
+    "imagePath": "./vraag10Elon.pdf"
   },
   {
     "id": 16,
     "type": "video",
     "content": "Is deze TikTok video echt of nep?",
     "answer": false,
-    "videoUrl": "TikTok.mp4"
+    "videoUrl": "./TikTok.mp4"
   },
   {
     "id": 17,
     "type": "video",
     "content": "Is deze video echt of nep?",
     "answer": false,
-    "videoUrl": "Mother.mp4"
+    "videoUrl": "./Mother.mp4"
   }
 ]
