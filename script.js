@@ -59,7 +59,7 @@ function shuffleQuestions() {
 document.addEventListener('DOMContentLoaded', async () => {
   // Load questions
   try {
-    const response = await fetch('./questions.json');
+    const response = await fetch('questions.json');
     if (!response.ok) {
       console.error('Questions file not found, creating default questions');
       gameState.questions = [];
@@ -100,49 +100,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check for game code in URL
   checkForGameCodeInURL();
   
-  // Fix for mobile input fields
-  const inputFields = document.querySelectorAll('input[type="text"]');
-  inputFields.forEach(input => {
-    input.setAttribute('autocapitalize', 'characters');
-    input.setAttribute('autocomplete', 'off');
-  });
-  
   // Hide step count displays
   hideStepCountDisplays();
-  
-  // Setup PDF display for image questions
-  setupPdfDisplay();
 });
-
-// Setup PDF display for image questions
-function setupPdfDisplay() {
-  // Add PDF.js library if not already included
-  if (!window.pdfjsLib) {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.12.313/pdf.min.js';
-    document.head.appendChild(script);
-  }
-}
-
-// Display PDF in image container
-function displayPdf(url, container) {
-  // If it's a PDF, use an iframe instead of img
-  if (url.toLowerCase().endsWith('.pdf')) {
-    // Clear container
-    container.innerHTML = '';
-    
-    // Create iframe for PDF
-    const iframe = document.createElement('iframe');
-    iframe.src = url;
-    iframe.style.width = '100%';
-    iframe.style.height = '500px';
-    iframe.style.border = 'none';
-    
-    container.appendChild(iframe);
-    return true;
-  }
-  return false;
-}
 
 // Hide step count displays
 function hideStepCountDisplays() {
@@ -183,7 +143,7 @@ function generateGameCode() {
 }
 
 // Create a new game as host
-async function createGame() {
+function createGame() {
   const hostName = document.getElementById('hostNameInput').value.trim();
   if (!hostName) {
     alert('Voer je naam in');
@@ -210,9 +170,19 @@ async function createGame() {
   gameState.gameStarted = false;
   gameState.currentQuestionVisible = false;
 
-  try {
-    // Save game to Firebase
-    await saveGameToFirebase();
+  // Save game to Firebase
+  database.ref(`games/${gameState.gameCode}`).set({
+    players: gameState.players,
+    currentPlayerIndex: 0,
+    currentQuestionIndex: 0,
+    fakemakerName: '',
+    fakemakerUnmasked: false,
+    playerSteps: gameState.playerSteps,
+    questions: gameState.questions,
+    gameStarted: false,
+    currentQuestionVisible: false,
+    lastUpdated: firebase.database.ServerValue.TIMESTAMP
+  }).then(() => {
     console.log('Game created successfully with code:', gameState.gameCode);
     
     // Start listening for updates
@@ -223,18 +193,18 @@ async function createGame() {
     
     // Modified: Direct host to role code screen instead of host game screen
     showScreen('roleCodeScreen');
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error creating game:', error);
     alert('Kon geen spel aanmaken. Probeer het opnieuw.');
-  } finally {
+  }).finally(() => {
     // Reset button
     document.getElementById('createGameBtn').disabled = false;
     document.getElementById('createGameBtn').textContent = 'Maak Spel';
-  }
+  });
 }
 
 // Join an existing game
-async function joinGame() {
+function joinGame() {
   const playerName = document.getElementById('playerNameInput').value.trim();
   const gameCode = document.getElementById('gameCodeInput').value.trim().toUpperCase();
   
@@ -247,27 +217,18 @@ async function joinGame() {
   document.getElementById('submitJoinBtn').disabled = true;
   document.getElementById('submitJoinBtn').textContent = 'Deelnemen...';
   
-  try {
-    console.log('Attempting to join game with code:', gameCode);
-    
-    // Try to load game from Firebase
-    const gameData = await loadGameFromFirebase(gameCode);
+  // Try to load game from Firebase
+  database.ref(`games/${gameCode}`).once('value').then((snapshot) => {
+    const gameData = snapshot.val();
     
     if (!gameData) {
-      console.error('Game not found with code:', gameCode);
       showError('joinErrorMessage', 'Spel niet gevonden. Controleer de code en probeer opnieuw.');
-      document.getElementById('submitJoinBtn').disabled = false;
-      document.getElementById('submitJoinBtn').textContent = 'Deelnemen';
       return;
     }
-    
-    console.log('Game data loaded:', gameData);
     
     // Check if name is already taken
     if (gameData.players && gameData.players.some(p => p.name === playerName)) {
       showError('joinErrorMessage', 'Naam is al in gebruik. Kies een andere naam.');
-      document.getElementById('submitJoinBtn').disabled = false;
-      document.getElementById('submitJoinBtn').textContent = 'Deelnemen';
       return;
     }
     
@@ -275,14 +236,14 @@ async function joinGame() {
     gameState.gameCode = gameCode;
     gameState.playerName = playerName;
     gameState.players = gameData.players || [];
-    gameState.currentPlayerIndex = typeof gameData.currentPlayerIndex === 'number' ? gameData.currentPlayerIndex : 0;
-    gameState.currentQuestionIndex = typeof gameData.currentQuestionIndex === 'number' ? gameData.currentQuestionIndex : 0;
+    gameState.currentPlayerIndex = gameData.currentPlayerIndex || 0;
+    gameState.currentQuestionIndex = gameData.currentQuestionIndex || 0;
     gameState.fakemakerName = gameData.fakemakerName || '';
-    gameState.fakemakerUnmasked = gameData.fakemakerUnmasked === true;
+    gameState.fakemakerUnmasked = gameData.fakemakerUnmasked || false;
     gameState.playerSteps = gameData.playerSteps || {};
     gameState.questions = gameData.questions || [];
-    gameState.gameStarted = gameData.gameStarted === true; // Ensure boolean value
-    gameState.currentQuestionVisible = gameData.currentQuestionVisible === true;
+    gameState.gameStarted = gameData.gameStarted || false;
+    gameState.currentQuestionVisible = gameData.currentQuestionVisible || false;
     
     // Add new player
     const newPlayer = {
@@ -297,24 +258,25 @@ async function joinGame() {
     // Initialize player steps
     gameState.playerSteps[playerName] = 0;
     
-    console.log('Saving updated game state after joining');
-    
     // Save updated game state
-    await saveGameToFirebase();
-    
+    return database.ref(`games/${gameCode}`).update({
+      players: gameState.players,
+      playerSteps: gameState.playerSteps
+    });
+  }).then(() => {
     // Start listening for updates
     startListeningForUpdates();
     
     // Show role code screen
     showScreen('roleCodeScreen');
-  } catch (error) {
+  }).catch((error) => {
     console.error("Error joining game:", error);
     showError('joinErrorMessage', 'Fout bij deelnemen aan spel. Probeer het opnieuw.');
-  } finally {
+  }).finally(() => {
     // Reset button
     document.getElementById('submitJoinBtn').disabled = false;
     document.getElementById('submitJoinBtn').textContent = 'Deelnemen';
-  }
+  });
 }
 
 // Show error message
@@ -357,7 +319,7 @@ function updatePlayerList() {
 }
 
 // Start game (host only)
-async function startGame() {
+function startGame() {
   // No longer require a Fakemaker to be in the game
   // Just check that players have roles assigned
   if (!gameState.players.some(player => player.role)) {
@@ -370,30 +332,30 @@ async function startGame() {
   document.getElementById('startGameBtn').disabled = true;
   document.getElementById('startGameBtn').textContent = 'Starting...';
   
-  try {
-    // Update game state
-    gameState.gameStarted = true;
-    
-    // Save to Firebase
-    await saveGameToFirebase();
-    
+  // Update game state
+  gameState.gameStarted = true;
+  
+  // Save to Firebase
+  database.ref(`games/${gameState.gameCode}`).update({
+    gameStarted: true
+  }).then(() => {
     // Update display
     updateGameDisplay();
     
     // Show game screen
     showScreen('gameScreen');
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error starting game:', error);
     alert('Failed to start game. Please try again.');
-  } finally {
+  }).finally(() => {
     // Reset button
     document.getElementById('startGameBtn').disabled = false;
     document.getElementById('startGameBtn').textContent = 'Start Game';
-  }
+  });
 }
 
 // Submit role code
-async function submitRoleCode() {
+function submitRoleCode() {
   const roleCode = document.getElementById('roleCodeInput').value.trim();
   
   if (!roleCode) {
@@ -412,24 +374,25 @@ async function submitRoleCode() {
   document.getElementById('submitRoleBtn').disabled = true;
   document.getElementById('submitRoleBtn').textContent = 'Bevestigen...';
   
-  try {
-    // Update player role
-    gameState.playerRole = roleEntry.role;
+  // Update player role
+  gameState.playerRole = roleEntry.role;
+  
+  // Update player in game state
+  const playerIndex = gameState.players.findIndex(p => p.name === gameState.playerName);
+  if (playerIndex !== -1) {
+    gameState.players[playerIndex].role = roleEntry.role;
     
-    // Update player in game state
-    const playerIndex = gameState.players.findIndex(p => p.name === gameState.playerName);
-    if (playerIndex !== -1) {
-      gameState.players[playerIndex].role = roleEntry.role;
-      
-      // If this is the Fakemaker, record their name
-      if (roleEntry.role === 'Fakemaker') {
-        gameState.fakemakerName = gameState.playerName;
-      }
+    // If this is the Fakemaker, record their name
+    if (roleEntry.role === 'Fakemaker') {
+      gameState.fakemakerName = gameState.playerName;
     }
-    
-    // Save to Firebase
-    await saveGameToFirebase();
-    
+  }
+  
+  // Save to Firebase
+  database.ref(`games/${gameState.gameCode}`).update({
+    players: gameState.players,
+    fakemakerName: gameState.fakemakerName
+  }).then(() => {
     // Display role
     document.getElementById('playerRoleDisplay').textContent = roleEntry.role;
     
@@ -444,14 +407,14 @@ async function submitRoleCode() {
     
     // Show role confirmation screen
     showScreen('roleConfirmationScreen');
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error submitting role:', error);
     showError('roleErrorMessage', 'Fout bij bevestigen rol. Probeer het opnieuw.');
-  } finally {
+  }).finally(() => {
     // Reset button
     document.getElementById('submitRoleBtn').disabled = false;
     document.getElementById('submitRoleBtn').textContent = 'Bevestigen';
-  }
+  });
 }
 
 // Continue after role assignment
@@ -535,49 +498,39 @@ function displayCurrentQuestion() {
   
   // Show appropriate media based on question type
   if (currentQuestion.type === 'image' && currentQuestion.imagePath) {
-    const imageContainer = document.getElementById('imageContainer');
-    
-    // Check if it's a PDF and display accordingly
+    // For PDF files, use iframe
     if (currentQuestion.imagePath.toLowerCase().endsWith('.pdf')) {
-      displayPdf(currentQuestion.imagePath, imageContainer);
+      const imageContainer = document.getElementById('imageContainer');
+      imageContainer.innerHTML = `<iframe src="${currentQuestion.imagePath}" width="100%" height="500px" style="border:none;"></iframe>`;
+      imageContainer.classList.remove('hidden');
     } else {
       // Regular image
       document.getElementById('questionImage').src = currentQuestion.imagePath;
+      document.getElementById('imageContainer').classList.remove('hidden');
     }
-    
-    imageContainer.classList.remove('hidden');
   } else if (currentQuestion.type === 'video' && currentQuestion.videoUrl) {
-    const videoContainer = document.getElementById('videoContainer');
-    
+    // For YouTube videos
     if (currentQuestion.videoUrl.includes('youtube.com') || currentQuestion.videoUrl.includes('youtu.be')) {
-      // YouTube video - create iframe
-      videoContainer.innerHTML = '';
+      const videoContainer = document.getElementById('videoContainer');
       const videoId = extractYouTubeId(currentQuestion.videoUrl);
       
       if (videoId) {
-        const iframe = document.createElement('iframe');
-        iframe.width = '100%';
-        iframe.height = '315';
-        iframe.src = `https://www.youtube.com/embed/${videoId}`;
-        iframe.frameBorder = '0';
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-        iframe.allowFullscreen = true;
-        
-        videoContainer.appendChild(iframe);
+        videoContainer.innerHTML = `<iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
       } else {
-        // Fallback to regular video player if YouTube ID extraction fails
+        // Fallback to regular video player
         const videoSource = document.getElementById('videoSource');
         videoSource.src = currentQuestion.videoUrl;
         document.getElementById('questionVideo').load();
       }
+      
+      videoContainer.classList.remove('hidden');
     } else {
       // Regular video
       const videoSource = document.getElementById('videoSource');
       videoSource.src = currentQuestion.videoUrl;
       document.getElementById('questionVideo').load();
+      document.getElementById('videoContainer').classList.remove('hidden');
     }
-    
-    videoContainer.classList.remove('hidden');
   } else if (currentQuestion.type === 'multiple_choice' && currentQuestion.options) {
     // Set up multiple choice options
     for (let i = 0; i < currentQuestion.options.length; i++) {
@@ -609,21 +562,26 @@ function extractYouTubeId(url) {
 }
 
 // Show question
-async function showQuestion() {
+function showQuestion() {
   const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
   
   // Set question as visible to all players
   gameState.currentQuestionVisible = true;
   
   // Save to Firebase so all players can see the question
-  await saveGameToFirebase();
-  
-  // Display the question
-  displayCurrentQuestion();
+  database.ref(`games/${gameState.gameCode}`).update({
+    currentQuestionVisible: true
+  }).then(() => {
+    // Display the question
+    displayCurrentQuestion();
+  }).catch((error) => {
+    console.error('Error showing question:', error);
+    alert('Fout bij het tonen van de vraag. Probeer het opnieuw.');
+  });
 }
 
 // Submit true/false answer
-async function submitAnswer(answer) {
+function submitAnswer(answer) {
   const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
   const isCorrect = answer === currentQuestion.answer;
   
@@ -649,20 +607,21 @@ async function submitAnswer(answer) {
     gameState.players[playerIndex].steps = gameState.playerSteps[gameState.playerName];
   }
   
-  try {
-    // Save to Firebase
-    await saveGameToFirebase();
-    
+  // Save to Firebase
+  database.ref(`games/${gameState.gameCode}`).update({
+    players: gameState.players,
+    playerSteps: gameState.playerSteps
+  }).then(() => {
     // Show result
     showResult(isCorrect, stepsChange);
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error submitting answer:', error);
     alert('Fout bij het indienen van antwoord. Probeer het opnieuw.');
-  }
+  });
 }
 
 // Submit multiple choice answer
-async function submitMultipleChoiceAnswer(optionIndex) {
+function submitMultipleChoiceAnswer(optionIndex) {
   const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
   const isCorrect = optionIndex === currentQuestion.correctOption;
   
@@ -688,16 +647,17 @@ async function submitMultipleChoiceAnswer(optionIndex) {
     gameState.players[playerIndex].steps = gameState.playerSteps[gameState.playerName];
   }
   
-  try {
-    // Save to Firebase
-    await saveGameToFirebase();
-    
+  // Save to Firebase
+  database.ref(`games/${gameState.gameCode}`).update({
+    players: gameState.players,
+    playerSteps: gameState.playerSteps
+  }).then(() => {
     // Show result
     showResult(isCorrect, stepsChange);
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error submitting answer:', error);
     alert('Fout bij het indienen van antwoord. Probeer het opnieuw.');
-  }
+  });
 }
 
 // Show result
@@ -736,7 +696,7 @@ function showResult(isCorrect, stepsChange) {
 }
 
 // Next turn
-async function nextTurn() {
+function nextTurn() {
   // Reset question visibility for next turn
   gameState.currentQuestionVisible = false;
   
@@ -748,19 +708,21 @@ async function nextTurn() {
     gameState.currentQuestionIndex = (gameState.currentQuestionIndex + 1) % gameState.questions.length;
   }
   
-  try {
-    // Save to Firebase
-    await saveGameToFirebase();
-    
+  // Save to Firebase
+  database.ref(`games/${gameState.gameCode}`).update({
+    currentPlayerIndex: gameState.currentPlayerIndex,
+    currentQuestionIndex: gameState.currentQuestionIndex,
+    currentQuestionVisible: false
+  }).then(() => {
     // Update display
     updateGameDisplay();
     
     // Show game screen
     showScreen('gameScreen');
-  } catch (error) {
+  }).catch((error) => {
     console.error('Error advancing turn:', error);
     alert('Fout bij het doorgaan naar de volgende beurt. Probeer het opnieuw.');
-  }
+  });
 }
 
 // Reset game
@@ -822,96 +784,30 @@ function checkForGameCodeInURL() {
   }
 }
 
-// Save game state to Firebase
-async function saveGameToFirebase() {
-  try {
-    // Ensure all properties are defined and not undefined
-    const gameData = {
-      players: gameState.players || [],
-      currentPlayerIndex: typeof gameState.currentPlayerIndex === 'number' ? gameState.currentPlayerIndex : 0,
-      currentQuestionIndex: typeof gameState.currentQuestionIndex === 'number' ? gameState.currentQuestionIndex : 0,
-      fakemakerName: gameState.fakemakerName || '',
-      fakemakerUnmasked: gameState.fakemakerUnmasked === true,
-      playerSteps: gameState.playerSteps || {},
-      questions: gameState.questions || [],
-      gameStarted: gameState.gameStarted === true,
-      currentQuestionVisible: gameState.currentQuestionVisible === true,
-      lastUpdated: firebase.database.ServerValue.TIMESTAMP
-    };
-    
-    // Log the data being saved for debugging
-    console.log('Saving game data to Firebase, code:', gameState.gameCode);
-    
-    // Use update instead of set to be more robust
-    await database.ref(`games/${gameState.gameCode}`).update(gameData);
-    console.log('Game data saved successfully');
-    return true;
-  } catch (error) {
-    console.error('Error saving game to Firebase:', error);
-    throw error;
-  }
-}
-
-// Load game state from Firebase
-async function loadGameFromFirebase(gameCode) {
-  try {
-    console.log('Loading game data from Firebase, code:', gameCode);
-    
-    // Add timeout to prevent indefinite waiting
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Firebase request timed out')), 10000)
-    );
-    
-    const dataPromise = database.ref(`games/${gameCode}`).once('value');
-    
-    // Race between timeout and actual data fetch
-    const snapshot = await Promise.race([dataPromise, timeoutPromise]);
-    
-    const data = snapshot.val();
-    console.log('Game data loaded:', data ? 'success' : 'not found');
-    return data;
-  } catch (error) {
-    console.error('Error loading game from Firebase:', error);
-    throw error;
-  }
-}
-
 // Start listening for updates
 function startListeningForUpdates() {
-  console.log('Starting to listen for updates, game code:', gameState.gameCode);
-  
-  // Remove any existing listeners first to prevent duplicates
-  database.ref(`games/${gameState.gameCode}`).off();
-  
   database.ref(`games/${gameState.gameCode}`).on('value', snapshot => {
     const data = snapshot.val();
-    if (!data) {
-      console.log('No data received in update');
-      return;
-    }
-    
-    console.log('Received update from Firebase');
+    if (!data) return;
     
     // Update local game state
     gameState.players = data.players || [];
-    gameState.currentPlayerIndex = typeof data.currentPlayerIndex === 'number' ? data.currentPlayerIndex : 0;
-    gameState.currentQuestionIndex = typeof data.currentQuestionIndex === 'number' ? data.currentQuestionIndex : 0;
+    gameState.currentPlayerIndex = data.currentPlayerIndex !== undefined ? data.currentPlayerIndex : 0;
+    gameState.currentQuestionIndex = data.currentQuestionIndex !== undefined ? data.currentQuestionIndex : 0;
     gameState.fakemakerName = data.fakemakerName || '';
-    gameState.fakemakerUnmasked = data.fakemakerUnmasked === true;
+    gameState.fakemakerUnmasked = data.fakemakerUnmasked !== undefined ? data.fakemakerUnmasked : false;
     gameState.playerSteps = data.playerSteps || {};
     gameState.questions = data.questions || [];
-    gameState.gameStarted = data.gameStarted === true;
-    gameState.currentQuestionVisible = data.currentQuestionVisible === true;
+    gameState.gameStarted = data.gameStarted !== undefined ? data.gameStarted : false;
+    gameState.currentQuestionVisible = data.currentQuestionVisible !== undefined ? data.currentQuestionVisible : false;
     
     // Update UI based on current screen
     const activeScreen = document.querySelector('.screen.active')?.id;
-    console.log('Active screen:', activeScreen);
     
     if (activeScreen === 'hostGameScreen') {
       updatePlayerList();
     } else if (activeScreen === 'roleConfirmationScreen' && gameState.gameStarted) {
       // Game started while player was waiting, join immediately
-      console.log('Game started while waiting, joining game');
       updateGameDisplay();
       showScreen('gameScreen');
     } else if (activeScreen === 'gameScreen') {
@@ -920,8 +816,6 @@ function startListeningForUpdates() {
       // If question is visible and we're not already on question screen, show it
       displayCurrentQuestion();
     }
-  }, (error) => {
-    console.error('Error in Firebase listener:', error);
   });
   
   // Set up connection status indicator
@@ -930,8 +824,6 @@ function startListeningForUpdates() {
     const connected = snap.val();
     const indicator = document.getElementById('connectionIndicator');
     const status = document.getElementById('connectionStatus');
-    
-    console.log('Connection status:', connected ? 'connected' : 'disconnected');
     
     if (connected) {
       indicator.classList.remove('offline', 'connecting');
