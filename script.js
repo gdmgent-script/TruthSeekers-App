@@ -13,7 +13,8 @@ const gameState = {
   playerRole: '',
   playerSteps: {},
   gameStarted: false,  // Initialize gameStarted to false explicitly
-  currentQuestionVisible: false  // Track if question is visible to all players
+  currentQuestionVisible: false,  // Track if question is visible to all players
+  playerQuestionSets: {} // Store unique question sets for each player
 };
 
 // Role codes
@@ -53,6 +54,36 @@ function shuffleQuestions() {
     [gameState.questions[i], gameState.questions[j]] = [gameState.questions[j], gameState.questions[i]];
   }
   console.log('Questions shuffled');
+}
+
+// Create unique question sets for each player
+function createPlayerQuestionSets() {
+  // Create a deep copy of the questions array to avoid modifying the original
+  const allQuestions = JSON.parse(JSON.stringify(gameState.questions));
+  
+  // Initialize player question sets if not already present
+  if (!gameState.playerQuestionSets) {
+    gameState.playerQuestionSets = {};
+  }
+  
+  // For each player, create a unique shuffled set of questions
+  gameState.players.forEach(player => {
+    if (!gameState.playerQuestionSets[player.name]) {
+      // Create a copy of all questions for this player
+      const playerQuestions = JSON.parse(JSON.stringify(allQuestions));
+      
+      // Shuffle this player's questions
+      for (let i = playerQuestions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [playerQuestions[i], playerQuestions[j]] = [playerQuestions[j], playerQuestions[i]];
+      }
+      
+      // Assign the shuffled questions to this player
+      gameState.playerQuestionSets[player.name] = playerQuestions;
+    }
+  });
+  
+  console.log('Created unique question sets for each player');
 }
 
 // Initialize
@@ -171,22 +202,16 @@ function createGame() {
   // Show loading indicator
   document.getElementById('createGameBtn').disabled = true;
   document.getElementById('createGameBtn').textContent = 'Spel aanmaken...';
-
   gameState.playerName = hostName;
   gameState.gameCode = generateGameCode();
   
-  // FIX: Auto-assign a role to the host (Factchecker by default)
-  const defaultHostRole = "Factchecker";
-  
+  // Host needs to enter role code too
   gameState.players = [{
     name: hostName,
-    role: defaultHostRole,  // Auto-assign role to host
+    role: '', // Host role is initially empty
     isHost: true,
     steps: 0
   }];
-  
-  // FIX: Set the host's role in the game state
-  gameState.playerRole = defaultHostRole;
   
   // Initialize player steps
   gameState.playerSteps[hostName] = 0;
@@ -200,7 +225,8 @@ function createGame() {
     players: gameState.players,
     currentPlayerIndex: 0,
     currentQuestionIndex: 0,
-    fakemakerName: '',
+    fakemakerName: 
+'',
     fakemakerUnmasked: false,
     playerSteps: gameState.playerSteps,
     questions: gameState.questions,
@@ -213,16 +239,12 @@ function createGame() {
     // Start listening for updates
     startListeningForUpdates();
     
-    // Display game code
-    document.getElementById('gameCodeDisplay').textContent = gameState.gameCode;
+    // Display game code (will be shown on host screen later)
+    // document.getElementById('gameCodeDisplay').textContent = gameState.gameCode;
     
-    // FIX: Skip role code screen and go directly to host game screen
-    // Show role confirmation first to inform the host of their role
-    document.getElementById('playerRoleDisplay').textContent = defaultHostRole;
-    document.getElementById('roleInstructions').textContent = 
-      'Als Factchecker probeer je te ontdekken wie de Fakemaker is door hun antwoorden te observeren.';
+    // Host must now enter role code
+    showScreen('roleCodeScreen');
     
-    showScreen('roleConfirmationScreen');
   }).catch((error) => {
     console.error('Error creating game:', error);
     alert('Kon geen spel aanmaken. Probeer het opnieuw.');
@@ -358,10 +380,16 @@ function updatePlayerList() {
 
 // Start game (host only)
 function startGame() {
-  // FIX: No need to check for roles since host already has one
-  // Just check that there are at least 2 players
+  // Check that there are at least 2 players
   if (gameState.players.length < 2) {
     alert('Er moeten minimaal 2 spelers zijn om het spel te starten.');
+    return;
+  }
+  
+  // Check that all players have roles assigned
+  const playersWithoutRoles = gameState.players.filter(p => !p.role);
+  if (playersWithoutRoles.length > 0) {
+    alert('Alle spelers moeten een rol hebben voordat het spel kan beginnen.');
     return;
   }
   
@@ -369,12 +397,16 @@ function startGame() {
   document.getElementById('startGameBtn').disabled = true;
   document.getElementById('startGameBtn').textContent = 'Starting...';
   
+  // Create unique question sets for each player
+  createPlayerQuestionSets();
+  
   // Update game state
   gameState.gameStarted = true;
   
   // Save to Firebase
   database.ref(`games/${gameState.gameCode}`).update({
-    gameStarted: true
+    gameStarted: true,
+    playerQuestionSets: gameState.playerQuestionSets
   }).then(() => {
     // Update display
     updateGameDisplay();
@@ -453,49 +485,49 @@ function submitRoleCode() {
     document.getElementById('submitRoleBtn').textContent = 'Bevestigen';
   });
 }
-
 // Continue after role assignment
 function continueAfterRole() {
   // If player is host, go to host screen
   const isHost = gameState.players.find(p => p.name === gameState.playerName)?.isHost;
   
   if (isHost) {
-    updatePlayerList();
+    // Display game code for the host
+    document.getElementById('gameCodeDisplay').textContent = gameState.gameCode;
     showScreen('hostGameScreen');
   } else {
-    // Check if game has already started
+    // If game has already started, go to game screen
     if (gameState.gameStarted) {
-      // Game already started, join immediately
       updateGameDisplay();
       showScreen('gameScreen');
     } else {
-      // Show waiting screen with clear message
-      document.getElementById('roleInstructions').textContent = 
-        'Waiting for the host to start the game. You will automatically join when the game begins.';
-      // Keep on role confirmation screen but update the UI to show waiting status
-      document.getElementById('continueAfterRoleBtn').style.display = 'none';
+      // Otherwise, wait for host to start game
+      showScreen('hostGameScreen');
     }
   }
 }
 
 // Update game display
 function updateGameDisplay() {
-  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
-  
-  // Update current player display
-  document.getElementById('currentPlayerDisplay').textContent = currentPlayer.name;
-  
-  // Show role name
+  // Set role name
   document.getElementById('roleName').textContent = gameState.playerRole;
   
-  // Show answer if player is Fakemaker and not unmasked
-  if (gameState.playerRole === 'Fakemaker' && !gameState.fakemakerUnmasked) {
+  // Get current player
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
+  // Set current player name
+  document.getElementById('currentPlayerDisplay').textContent = currentPlayer.name;
+  
+  // Show/hide answer info for Fakemaker
+  if (gameState.playerRole === 'Fakemaker' && gameState.currentQuestionVisible) {
     document.getElementById('answerInfo').classList.remove('hidden');
-    const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+    
+    // Get the current question from the player's unique question set
+    const playerQuestions = gameState.playerQuestionSets[currentPlayer.name];
+    const currentQuestion = playerQuestions ? playerQuestions[gameState.currentQuestionIndex % playerQuestions.length] : gameState.questions[gameState.currentQuestionIndex];
     
     if (currentQuestion.type === 'multiple_choice') {
       const correctOptionIndex = currentQuestion.correctOption;
-      document.getElementById('correctAnswer').textContent = `Optie ${correctOptionIndex + 1}`;
+      document.getElementById('correctAnswer').textContent = currentQuestion.options[correctOptionIndex];
     } else {
       document.getElementById('correctAnswer').textContent = currentQuestion.answer ? 'Echt' : 'Fake';
     }
@@ -520,7 +552,12 @@ function updateGameDisplay() {
 
 // Display current question
 function displayCurrentQuestion() {
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  // Get the current player
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
+  // Get the current question from the player's unique question set
+  const playerQuestions = gameState.playerQuestionSets[currentPlayer.name];
+  const currentQuestion = playerQuestions ? playerQuestions[gameState.currentQuestionIndex % playerQuestions.length] : gameState.questions[gameState.currentQuestionIndex];
   
   // Set question number
   document.getElementById('questionNumber').textContent = `Vraag ${gameState.currentQuestionIndex + 1}`;
@@ -539,14 +576,40 @@ function displayCurrentQuestion() {
   
   // Show appropriate media based on question type
   if (currentQuestion.type === 'image' && currentQuestion.imagePath) {
-    // For PDF files, use iframe
+    // For PDF files, use object tag instead of iframe for better compatibility
     if (currentQuestion.imagePath.toLowerCase().endsWith('.pdf')) {
       const imageContainer = document.getElementById('imageContainer');
-      imageContainer.innerHTML = `<iframe src="${currentQuestion.imagePath}" width="100%" height="500px" style="border:none;"></iframe>`;
+      imageContainer.innerHTML = `<object data="${currentQuestion.imagePath}" type="application/pdf" width="100%" height="500px">
+        <p>Het lijkt erop dat je browser geen PDF's kan weergeven. 
+        <a href="${currentQuestion.imagePath}" target="_blank">Download de PDF</a> of open in een nieuwe tab.</p>
+      </object>`;
       imageContainer.classList.remove('hidden');
+      
+      // Add a direct link below the PDF for better accessibility
+      const linkElement = document.createElement('div');
+      linkElement.innerHTML = `<a href="${currentQuestion.imagePath}" target="_blank" class="pdf-direct-link">PDF openen in nieuwe tab</a>`;
+      imageContainer.appendChild(linkElement);
     } else {
-      // Regular image
-      document.getElementById('questionImage').src = currentQuestion.imagePath;
+      // Regular image with error handling
+      const imgElement = document.getElementById('questionImage');
+      imgElement.onerror = function() {
+        this.onerror = null;
+        this.src = 'placeholder-image.png'; // Fallback image
+        const errorMsg = document.createElement('p');
+        errorMsg.textContent = 'Afbeelding kon niet worden geladen. Klik hier om te openen:';
+        errorMsg.style.color = '#ffcc00';
+        const link = document.createElement('a');
+        link.href = currentQuestion.imagePath;
+        link.target = '_blank';
+        link.textContent = 'Open afbeelding in nieuwe tab';
+        link.style.display = 'block';
+        link.style.marginTop = '10px';
+        link.style.color = '#4CAF50';
+        const container = document.getElementById('imageContainer');
+        container.appendChild(errorMsg);
+        container.appendChild(link);
+      };
+      imgElement.src = currentQuestion.imagePath;
       document.getElementById('imageContainer').classList.remove('hidden');
     }
   } else if (currentQuestion.type === 'video' && currentQuestion.videoUrl) {
@@ -604,7 +667,9 @@ function extractYouTubeId(url) {
 
 // Show question
 function showQuestion() {
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  const playerQuestions = gameState.playerQuestionSets[currentPlayer.name];
+  const currentQuestion = playerQuestions ? playerQuestions[gameState.currentQuestionIndex % playerQuestions.length] : gameState.questions[gameState.currentQuestionIndex];
   
   // Set question as visible to all players
   gameState.currentQuestionVisible = true;
@@ -623,7 +688,13 @@ function showQuestion() {
 
 // Submit true/false answer
 function submitAnswer(answer) {
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  // Get the current player
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
+  // Get the current question from the player's unique question set
+  const playerQuestions = gameState.playerQuestionSets[currentPlayer.name];
+  const currentQuestion = playerQuestions ? playerQuestions[gameState.currentQuestionIndex % playerQuestions.length] : gameState.questions[gameState.currentQuestionIndex];
+  
   const isCorrect = answer === currentQuestion.answer;
   
   // Calculate steps change based on correctness
@@ -663,7 +734,13 @@ function submitAnswer(answer) {
 
 // Submit multiple choice answer
 function submitMultipleChoiceAnswer(optionIndex) {
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  // Get the current player
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
+  // Get the current question from the player's unique question set
+  const playerQuestions = gameState.playerQuestionSets[currentPlayer.name];
+  const currentQuestion = playerQuestions ? playerQuestions[gameState.currentQuestionIndex % playerQuestions.length] : gameState.questions[gameState.currentQuestionIndex];
+  
   const isCorrect = optionIndex === currentQuestion.correctOption;
   
   // Calculate steps change based on correctness
@@ -705,7 +782,13 @@ function submitMultipleChoiceAnswer(optionIndex) {
 function showResult(isCorrect, stepsChange) {
   document.getElementById('resultTitle').textContent = isCorrect ? 'Correct!' : 'Incorrect!';
   
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  // Get the current player
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  
+  // Get the current question from the player's unique question set
+  const playerQuestions = gameState.playerQuestionSets[currentPlayer.name];
+  const currentQuestion = playerQuestions ? playerQuestions[gameState.currentQuestionIndex % playerQuestions.length] : gameState.questions[gameState.currentQuestionIndex];
+  
   let correctAnswerText = '';
   
   if (currentQuestion.type === 'multiple_choice') {
@@ -841,6 +924,7 @@ function startListeningForUpdates() {
     gameState.questions = data.questions || [];
     gameState.gameStarted = data.gameStarted !== undefined ? data.gameStarted : false;
     gameState.currentQuestionVisible = data.currentQuestionVisible !== undefined ? data.currentQuestionVisible : false;
+    gameState.playerQuestionSets = data.playerQuestionSets || {};
     
     // Update UI based on current screen
     const activeScreen = document.querySelector('.screen.active')?.id;
