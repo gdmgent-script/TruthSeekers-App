@@ -64,7 +64,7 @@ p {
 }
 
 .logo {
-    width: 200px;
+    width: 300px; /* Increased size for the new logo */
     height: auto;
     filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
 }
@@ -231,6 +231,22 @@ button:disabled {
     border-radius: 10px;
 }
 
+/* PDF direct link styling */
+.pdf-direct-link {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 8px 16px;
+    background-color: #4CAF50;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.pdf-direct-link:hover {
+    background-color: #45a049;
+}
+
 .answer-buttons {
     display: flex;
     justify-content: space-around;
@@ -360,6 +376,10 @@ button:disabled {
         font-size: 1rem;
     }
     
+    .logo {
+        width: 250px; /* Slightly smaller on medium screens */
+    }
+    
     .game-code {
         font-size: 2rem;
         letter-spacing: 3px;
@@ -386,6 +406,10 @@ button:disabled {
     
     h1 {
         font-size: 1.8rem;
+    }
+    
+    .logo {
+        width: 200px; /* Even smaller on mobile screens */
     }
     
     .game-code {
