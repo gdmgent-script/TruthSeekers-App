@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Truth Seekers - CTRL+P</title>
-    <link rel="stylesheet" href="styles.css">
-    <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- QR Code Library removed -->
+    <link rel="stylesheet" href="updated_styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <div class="container">
@@ -158,23 +158,6 @@
     </div>
 
     <script src="script.js"></script>
-    <!-- Correct Supabase SDK include -->
-    <script src="https://xrnwetlgqhkpykjulxox.supabase.co"></script>
-    <script>
-        // Initialize Supabase client
-        const SUPABASE_URL = 'https://xrnwetlgqhkpykjulxox.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhybndldGxncWhrcHlranVseG94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk1MDQzNTMsImV4cCI6MjA2NTA4MDM1M30.TxEZlk_MBpz1GplLijpJaaSYmm-jt6l3jCtEgr6LOrQ'; 
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-        // You can now use the 'supabase' object to interact with your Supabase project
-        // For example, to listen for real-time changes:
-        // supabase.channel('any')
-        //   .on('postgres_changes', { event: '*', schema: 'public', table: 'your_table_name' }, payload => {
-        //     console.log('Change received!', payload)
-        //   })
-        //   .subscribe()
-    </script>
 </body>
 </html>
-
 
