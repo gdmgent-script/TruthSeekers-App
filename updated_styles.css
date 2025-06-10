@@ -508,3 +508,9 @@ button:disabled {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     z-index: 990; /* Below AR overlay, above connection status if they overlap */
 }
+
+/* Ensure A-Frame canvas stays within its container */
+#arViewContainer a-scene canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
