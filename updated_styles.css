@@ -491,3 +491,20 @@ button:disabled {
     z-index: 1001; /* Above the a-scene */
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
+
+/* Global AR Button Styles */
+.global-ar-button {
+    position: fixed;
+    top: 20px; /* Adjust as needed */
+    right: 20px; /* Adjust as needed */
+    background-color: #ff6b6b; /* Or your preferred color */
+    color: white;
+    padding: 10px 15px;
+    border-radius: 50px; /* Match other buttons */
+    font-size: 0.9rem; /* Adjust as needed */
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    z-index: 990; /* Below AR overlay, above connection status if they overlap */
+}

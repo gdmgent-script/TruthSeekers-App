@@ -136,9 +136,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("click", shareGame);
 
   // AR View Buttons
-  const scanHiroBtn = document.getElementById("scanHiroBtn");
-  if (scanHiroBtn) {
-      scanHiroBtn.addEventListener("click", showArView);
+  const globalScanHiroBtn = document.getElementById("globalScanHiroBtn");
+  if (globalScanHiroBtn) {
+      globalScanHiroBtn.addEventListener("click", showArView);
   }
   const closeArViewBtn = document.getElementById("closeArViewBtn");
   if (closeArViewBtn) {
@@ -158,6 +158,12 @@ function showScreen(screenId) {
     screen.classList.remove("active");
   });
   document.getElementById(screenId).classList.add("active");
+
+  // Hide global AR button on screens before game join/start
+  const globalArBtn = document.getElementById("globalScanHiroBtn");
+  if (["startScreen", "hostSetupScreen", "joinGameScreen", "roleCodeScreen"].includes(screenId)) {
+    if (globalArBtn) globalArBtn.classList.add("hidden");
+  }
 }
 
 // Generate a random game code
@@ -565,6 +571,10 @@ async function submitRoleCode() {
 
 // Continue after role assignment
 function continueAfterRole() {
+  // Show global AR button now that role is confirmed
+  const globalArBtn = document.getElementById("globalScanHiroBtn");
+  if (globalArBtn) globalArBtn.classList.remove("hidden");
+
   // If player is host, go to host screen
   const isHost = gameState.players.find(
     (p) => p.name === gameState.playerName
@@ -591,6 +601,10 @@ function continueAfterRole() {
 
 // Update game display
 function updateGameDisplay() {
+  // Ensure global AR button is visible if game is active
+  const globalArBtn = document.getElementById("globalScanHiroBtn");
+  if (globalArBtn) globalArBtn.classList.remove("hidden");
+
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
 
   // Update current player display
@@ -781,6 +795,10 @@ function resetGame() {
 
   // Stop listening for updates
   stopListeningForUpdates();
+
+  // Hide the global AR button
+  const globalArBtn = document.getElementById("globalScanHiroBtn");
+  if (globalArBtn) globalArBtn.classList.add("hidden");
 
   // Show start screen
   showScreen("startScreen");
