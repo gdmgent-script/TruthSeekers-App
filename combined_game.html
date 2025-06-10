@@ -124,16 +124,36 @@
         /* AR Scene styling */
         .ar-scene {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80vw; /* Adjust as needed */
+            height: 60vh; /* Adjust as needed */
+            max-width: 400px; /* Max width for larger screens */
+            max-height: 300px; /* Max height for larger screens */
             z-index: 998;
             display: none;
+            border: 2px solid #ff4444;
+            border-radius: 10px;
+            overflow: hidden;
         }
 
         .ar-scene.active {
             display: block;
+        }
+
+        @media (max-width: 768px) {
+            .ar-scene {
+                width: 90vw;
+                height: 70vh;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .ar-scene {
+                width: 95vw;
+                height: 75vh;
+            }
         }
     </style>
 </head>
@@ -154,8 +174,8 @@
         </div>
     </div>
 
-    <!-- AR Scene -->
-    <a-scene class="ar-scene" id="arScene" embedded arjs>
+    <!-- AR Scene - NO arjs attribute initially to prevent auto camera activation -->
+    <a-scene class="ar-scene" id="arScene" embedded>
         <a-marker preset="hiro">
             <a-entity id="dynamicObject" position="0 0 0"></a-entity>
         </a-marker>
@@ -183,7 +203,7 @@
             <div class="form-group">
                 <input type="text" id="hostNameInput" placeholder="Jouw Naam" class="input-field">
                 <button id="createGameBtn" class="primary-button">Maak Spel</button>
-                <button id="backFromHostBtn" class="secondary-button" onclick="showScreen('startScreen')">Terug</button>
+                <button id="backFromHostBtn" class="secondary-button" onclick="showScreen(\'startScreen\')">Terug</button>
             </div>
         </div>
 
@@ -195,7 +215,7 @@
                 <input type="text" id="playerNameInput" placeholder="Jouw Naam" class="input-field">
                 <input type="text" id="gameCodeInput" placeholder="Spelcode" class="input-field" maxlength="5">
                 <button id="submitJoinBtn" class="primary-button">Deelnemen</button>
-                <button id="backFromJoinBtn" class="secondary-button" onclick="showScreen('startScreen')">Terug</button>
+                <button id="backFromJoinBtn" class="secondary-button" onclick="showScreen(\'startScreen\')">Terug</button>
                 <p id="joinErrorMessage" class="error-message hidden"></p>
             </div>
         </div>
@@ -228,7 +248,7 @@
             <div class="game-code">
                 <span id="gameCodeDisplay"></span>
             </div>
-            <button id="copyCodeBtn" class="secondary-button" onclick="copyToClipboard(document.getElementById('gameCodeDisplay').textContent)">Code Kopiëren</button>
+            <button id="copyCodeBtn" class="secondary-button" onclick="copyToClipboard(document.getElementById(\'gameCodeDisplay\').textContent)">Code Kopiëren</button>
             <button id="shareGameBtn" class="secondary-button">Spellink Delen</button>
             
             <p id="shareSuccessMessage" class="success-message hidden"></p>
@@ -275,7 +295,7 @@
             <div id="videoContainer" class="media-container hidden">
                 <video id="questionVideo" controls>
                     <source id="videoSource" src="" type="video/mp4">
-                    Je browser ondersteunt geen video's.
+                    Je browser ondersteunt geen video\'s.
                 </video>
             </div>
             
@@ -305,7 +325,6 @@
             <p>Jouw stappen: <span id="stepsDisplayResult" class="highlight">0</span></p>
             <p id="stepChange" class="highlight"></p>
             <button id="nextTurnBtn" class="primary-button">Volgende Beurt</button>
-            <button id="newGameBtn" class="secondary-button">Nieuw Spel</button>
         </div>
     </div>
 
@@ -315,6 +334,7 @@
         const object = document.getElementById("dynamicObject");
         let currentIndex = 0;
         let isARActive = false;
+        let arInitialized = false;
 
         const arButton = document.getElementById("arButton");
         const scannerOverlay = document.getElementById("scannerOverlay");
@@ -331,11 +351,43 @@
             object.setAttribute("geometry", `primitive: ${model.primitive}`);
             object.setAttribute("material", `color: ${model.color}`);
             object.setAttribute("scale", model.scale);
-            currentIndex = (currentIndex + 1) % models.length; // Wissel door lijst heen
+            currentIndex = (currentIndex + 1) % models.length;
+        }
+
+        function initializeAR() {
+            if (!arInitialized) {
+                // Add the arjs attribute to activate AR
+                arScene.setAttribute("arjs", "");
+                arInitialized = true;
+                
+                // Wait a moment for AR to initialize, then set up event listeners
+                setTimeout(() => {
+                    const marker = document.querySelector("a-marker");
+                    if (marker) {
+                        marker.addEventListener("markerFound", () => {
+                            if (isARActive) {
+                                changeModel();
+                                scannerOverlay.style.display = "none";
+                            }
+                        });
+
+                        marker.addEventListener("markerLost", () => {
+                            if (isARActive) {
+                                scannerOverlay.style.display = "flex";
+                            }
+                        });
+                    }
+                }, 1000);
+            }
         }
 
         function toggleAR() {
             if (!isARActive) {
+                // Initialize AR only when first activated
+                if (!arInitialized) {
+                    initializeAR();
+                }
+                
                 isARActive = true;
                 arButton.innerHTML = "❌";
                 arButton.title = "Stop AR Camera";
@@ -351,27 +403,6 @@
         }
 
         arButton.addEventListener("click", toggleAR);
-
-        // Wait for A-Frame to be ready before adding event listeners
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-                const marker = document.querySelector("a-marker");
-                if (marker) {
-                    marker.addEventListener("markerFound", () => {
-                        if (isARActive) {
-                            changeModel();
-                            scannerOverlay.style.display = "none";
-                        }
-                    });
-
-                    marker.addEventListener("markerLost", () => {
-                        if (isARActive) {
-                            scannerOverlay.style.display = "flex";
-                        }
-                    });
-                }
-            }, 1000);
-        });
     </script>
 </body>
 </html>

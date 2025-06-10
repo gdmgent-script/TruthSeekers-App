@@ -12,6 +12,8 @@ const gameState = {
   playerName: "",
   playerRole: "",
   playerSteps: {},
+  usedQuestions: [], // Track which questions have been used
+  playerQuestions: {}, // Track which question each player gets
 };
 
 // Role codes
@@ -207,9 +209,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document
     .getElementById("nextTurnBtn")
     .addEventListener("click", nextTurn);
-  document
-    .getElementById("newGameBtn")
-    .addEventListener("click", resetGame);
   document
     .getElementById("shareGameBtn")
     .addEventListener("click", shareGame);
@@ -555,8 +554,11 @@ function updateGameDisplay() {
   // Show answer if player is Fakemaker and not unmasked
   if (gameState.playerRole === "Fakemaker" && !gameState.fakemakerUnmasked) {
     document.getElementById("answerInfo").classList.remove("hidden");
-    const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
-    document.getElementById("correctAnswer").textContent = currentQuestion.answer ? "Echt" : "Fake";
+    // Get the current player's assigned question for showing the answer
+    const currentPlayerQuestion = gameState.playerQuestions[currentPlayer.name];
+    if (currentPlayerQuestion) {
+      document.getElementById("correctAnswer").textContent = currentPlayerQuestion.answer ? "Echt" : "Fake";
+    }
   } else {
     document.getElementById("answerInfo").classList.add("hidden");
   }
@@ -572,10 +574,33 @@ function updateGameDisplay() {
 
 // Show question
 function showQuestion() {
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  let questionToShow;
+  
+  // Check if this player already has an assigned question
+  if (gameState.playerQuestions[currentPlayer.name]) {
+    questionToShow = gameState.playerQuestions[currentPlayer.name];
+  } else {
+    // Find an unused question for this player
+    const availableQuestions = gameState.questions.filter(q => !gameState.usedQuestions.includes(q.id));
+    
+    if (availableQuestions.length === 0) {
+      // If all questions are used, reset and start over
+      gameState.usedQuestions = [];
+      gameState.playerQuestions = {};
+      questionToShow = gameState.questions[0];
+    } else {
+      // Assign a new unique question to this player
+      questionToShow = availableQuestions[0];
+    }
+    
+    // Mark this question as used and assign it to the player
+    gameState.usedQuestions.push(questionToShow.id);
+    gameState.playerQuestions[currentPlayer.name] = questionToShow;
+  }
 
-  document.getElementById("questionNumber").textContent = `Vraag ${gameState.currentQuestionIndex + 1}`;
-  document.getElementById("questionContent").textContent = currentQuestion.content;
+  document.getElementById("questionNumber").textContent = `Vraag voor ${currentPlayer.name}`;
+  document.getElementById("questionContent").textContent = questionToShow.content;
 
   // Hide all media containers first
   document.getElementById("imageContainer").classList.add("hidden");
@@ -583,17 +608,17 @@ function showQuestion() {
   document.getElementById("externalActionContainer").classList.add("hidden");
 
   // Show appropriate media based on question type
-  if (currentQuestion.type === "image") {
-    document.getElementById("questionImage").src = currentQuestion.imagePath;
+  if (questionToShow.type === "image") {
+    document.getElementById("questionImage").src = questionToShow.imagePath;
     document.getElementById("imageContainer").classList.remove("hidden");
-  } else if (currentQuestion.type === "video" && currentQuestion.videoUrl) {
-    document.getElementById("questionVideo").src = currentQuestion.videoUrl;
+  } else if (questionToShow.type === "video" && questionToShow.videoUrl) {
+    document.getElementById("questionVideo").src = questionToShow.videoUrl;
     document.getElementById("videoContainer").classList.remove("hidden");
   } else if (
-    currentQuestion.type === "external_action" &&
-    currentQuestion.externalActionPrompt
+    questionToShow.type === "external_action" &&
+    questionToShow.externalActionPrompt
   ) {
-    document.getElementById("externalActionPrompt").textContent = currentQuestion.externalActionPrompt;
+    document.getElementById("externalActionPrompt").textContent = questionToShow.externalActionPrompt;
     document.getElementById("externalActionContainer").classList.remove("hidden");
   }
 
@@ -602,7 +627,8 @@ function showQuestion() {
 
 // Submit answer
 async function submitAnswer(answer) {
-  const currentQuestion = gameState.questions[gameState.currentQuestionIndex];
+  const currentPlayer = gameState.players[gameState.currentPlayerIndex];
+  const currentQuestion = gameState.playerQuestions[currentPlayer.name];
   const isCorrect = answer === currentQuestion.answer;
 
   let resultMessage = "";
@@ -656,12 +682,19 @@ async function nextTurn() {
     gameState.currentPlayerIndex + 1
   ) % gameState.players.length;
 
-  // Move to next question if we've gone through all players
-  if (gameState.currentPlayerIndex === 0) {
-    gameState.currentQuestionIndex++;
+  // Check if all players have answered their questions
+  const allPlayersAnswered = gameState.players.every(player => 
+    gameState.playerQuestions[player.name] !== undefined
+  );
 
-    // Check if game is over
-    if (gameState.currentQuestionIndex >= gameState.questions.length) {
+  // If all players have answered and we're back to the first player, check if we should end
+  if (gameState.currentPlayerIndex === 0 && allPlayersAnswered) {
+    // Check if we have enough questions for another round
+    const totalQuestionsNeeded = gameState.players.length;
+    const remainingQuestions = gameState.questions.length - gameState.usedQuestions.length;
+    
+    if (remainingQuestions < totalQuestionsNeeded) {
+      // Not enough questions for another full round, end the game
       endGame();
       return;
     }
@@ -707,9 +740,8 @@ function endGame() {
     document.getElementById("resultMessage").textContent = `It's a tie between ${winners.join(" and ")} with ${maxSteps} steps!`;
   }
 
-  // Change button text
+  // Hide the next turn button since game is over
   document.getElementById("nextTurnBtn").style.display = "none";
-  document.getElementById("newGameBtn").textContent = "Back to Start";
 
   showScreen("resultScreen");
 }
@@ -727,6 +759,8 @@ function resetGame() {
   gameState.playerRole = "";
   gameState.playerSteps = {};
   gameState.gameStarted = false;
+  gameState.usedQuestions = [];
+  gameState.playerQuestions = {};
 
   // Stop listening for updates
   stopListeningForUpdates();
@@ -751,6 +785,8 @@ async function saveGameToFirebase() {
     playerSteps: gameState.playerSteps || {},
     questions: gameState.questions || [],
     gameStarted: gameState.gameStarted === true,
+    usedQuestions: gameState.usedQuestions || [],
+    playerQuestions: gameState.playerQuestions || {},
     lastUpdated: firebase.database.ServerValue.TIMESTAMP,
   };
 
@@ -804,6 +840,8 @@ function startListeningForUpdates() {
     gameState.playerSteps = data.playerSteps || gameState.playerSteps;
     gameState.questions = data.questions || gameState.questions;
     gameState.gameStarted = data.gameStarted !== undefined ? data.gameStarted : gameState.gameStarted;
+    gameState.usedQuestions = data.usedQuestions || gameState.usedQuestions;
+    gameState.playerQuestions = data.playerQuestions || gameState.playerQuestions;
 
     // Update UI based on game state
     if (gameState.gameStarted) {
