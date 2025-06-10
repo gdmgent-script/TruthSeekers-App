@@ -135,6 +135,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     .getElementById("shareGameBtn")
     .addEventListener("click", shareGame);
 
+  // Add event listener for the AR button
+  document
+    .getElementById("goToARBtn")
+    .addEventListener("click", () => {
+      showScreen("arScreen");
+      initializeAR(); // Initialize AR when switching to the AR screen
+    });
+
   // Check for game code in URL
   checkForGameCodeInURL();
 
@@ -856,5 +864,55 @@ function updateConnectionStatus(status) {
       statusText.textContent = "Onbekend";
   }
 }
+
+
+
+
+
+// AR Functionality
+let arCurrentIndex = 0;
+const arModels = [
+  { primitive: "box", color: "red", scale: "1 1 1" },
+  { primitive: "sphere", color: "blue", scale: "1 1 1" },
+  { primitive: "cone", color: "green", scale: "1 1 1" }
+];
+
+function changeArModel() {
+  const arObject = document.getElementById("dynamicObject");
+  if (arObject) { // Check if the AR object exists on the current screen
+    const model = arModels[arCurrentIndex];
+    arObject.setAttribute("geometry", `primitive: ${model.primitive}`);
+    arObject.setAttribute("material", `color: ${model.color}`);
+    arObject.setAttribute("scale", model.scale);
+    arCurrentIndex = (arCurrentIndex + 1) % arModels.length;
+  }
+}
+
+// Function to initialize AR when the AR screen is shown
+function initializeAR() {
+    const marker = document.querySelector("a-marker");
+    if (marker) {
+        marker.addEventListener("markerFound", () => {
+            console.log("Marker found, changing AR model.");
+            changeArModel();
+        });
+    } else {
+        console.log("AR Marker not found on this screen.");
+    }
+}
+
+// Modify the DOMContentLoaded event listener to include AR button
+document.addEventListener("DOMContentLoaded", async () => {
+    // ... (existing game initialization code) ...
+
+    // Add event listener for the AR button
+    const goToARBtn = document.getElementById("goToARBtn");
+    if (goToARBtn) {
+        goToARBtn.addEventListener("click", () => {
+            showScreen("arScreen");
+            initializeAR(); // Initialize AR when switching to the AR screen
+        });
+    }
+});
 
 

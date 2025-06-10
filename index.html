@@ -8,6 +8,9 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- A-Frame and AR.js for AR functionality -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -21,6 +24,7 @@
             <div class="button-container">
                 <button id="hostGameBtn" class="primary-button">Spel Hosten</button>
                 <button id="goToJoinBtn" class="secondary-button">Deelnemen</button>
+                <button id="goToARBtn" class="secondary-button">Start AR Ervaring</button>
             </div>
         </div>
 
@@ -123,7 +127,7 @@
             <div id="videoContainer" class="media-container hidden">
                 <video id="questionVideo" controls>
                     <source id="videoSource" src="" type="video/mp4">
-                    Je browser ondersteunt geen video\'s.
+                    Je browser ondersteunt geen video\"s.
                 </video>
             </div>
             
@@ -154,6 +158,17 @@
             <p id="stepChange" class="highlight"></p>
             <button id="nextTurnBtn" class="primary-button">Volgende Beurt</button>
             <button id="newGameBtn" class="secondary-button">Nieuw Spel</button>
+        </div>
+
+        <!-- AR Screen -->
+        <div id="arScreen" class="screen">
+            <a-scene embedded arjs>
+                <a-marker preset="hiro">
+                    <a-entity id="dynamicObject" position="0 0 0"></a-entity>
+                </a-marker>
+                <a-entity camera></a-entity>
+            </a-scene>
+            <button id="backFromARBtn" class="secondary-button" onclick="showScreen(\'startScreen\')">Terug naar Start</button>
         </div>
     </div>
 
