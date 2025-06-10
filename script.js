@@ -61,14 +61,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const response = await fetch("questions.json");
     if (!response.ok) {
-      // Instead of throwing an error, create a default question with VIDEO1.mp4
-      console.log("Questions file not found, creating default video question");
+      // Instead of throwing an error, create default questions
+      console.log("Questions file not found, creating default questions");
       gameState.questions = [];
     } else {
       gameState.questions = await response.json();
     }
 
-    // Add video question (replacing the image question)
+    // Add multiple questions to ensure game continues beyond 2 questions
     gameState.questions = [
       {
         id: 1,
@@ -77,20 +77,99 @@ document.addEventListener("DOMContentLoaded", async () => {
         answer: false, // "fake" is false
         videoUrl: "VIDEO1.mp4",
       },
+      {
+        id: 2,
+        type: "text",
+        content: "Vraag 2: Denk je dat deze uitspraak waar is: 'De aarde is plat'?",
+        answer: false, // This is fake/false
+      },
+      {
+        id: 3,
+        type: "text",
+        content: "Vraag 3: Is het waar dat water kookt bij 100 graden Celsius?",
+        answer: true, // This is true/real
+      },
+      {
+        id: 4,
+        type: "text",
+        content: "Vraag 4: Klopt het dat mensen slechts 10% van hun hersenen gebruiken?",
+        answer: false, // This is a myth/fake
+      },
+      {
+        id: 5,
+        type: "text",
+        content: "Vraag 5: Is het waar dat de Chinese Muur vanuit de ruimte zichtbaar is?",
+        answer: false, // This is a common myth/fake
+      },
+      {
+        id: 6,
+        type: "text",
+        content: "Vraag 6: Klopt het dat bliksem nooit twee keer op dezelfde plaats inslaat?",
+        answer: false, // This is false/fake
+      },
+      {
+        id: 7,
+        type: "text",
+        content: "Vraag 7: Is het waar dat goudvissen een geheugen van 3 seconden hebben?",
+        answer: false, // This is false/fake
+      },
+      {
+        id: 8,
+        type: "text",
+        content: "Vraag 8: Klopt het dat de zon een ster is?",
+        answer: true, // This is true/real
+      },
+      {
+        id: 9,
+        type: "text",
+        content: "Vraag 9: Is het waar dat kamelen water opslaan in hun bulten?",
+        answer: false, // This is false/fake - they store fat
+      },
+      {
+        id: 10,
+        type: "text",
+        content: "Vraag 10: Klopt het dat antibiotica werken tegen virussen?",
+        answer: false, // This is false/fake - they work against bacteria
+      }
     ];
 
-    // No need to shuffle with just one question
+    // Shuffle the questions for variety
+    shuffleQuestions();
   } catch (error) {
     console.error("Error loading questions:", error);
-    // Remove the alert that was causing startup error
+    // Create default questions if there's an error
     gameState.questions = [
       {
         id: 1,
         type: "video",
         content: "Is deze video echt of nep?",
-        answer: false, // "fake" is false
+        answer: false,
         videoUrl: "VIDEO1.mp4",
       },
+      {
+        id: 2,
+        type: "text",
+        content: "Vraag 2: Denk je dat deze uitspraak waar is: 'De aarde is plat'?",
+        answer: false,
+      },
+      {
+        id: 3,
+        type: "text",
+        content: "Vraag 3: Is het waar dat water kookt bij 100 graden Celsius?",
+        answer: true,
+      },
+      {
+        id: 4,
+        type: "text",
+        content: "Vraag 4: Klopt het dat mensen slechts 10% van hun hersenen gebruiken?",
+        answer: false,
+      },
+      {
+        id: 5,
+        type: "text",
+        content: "Vraag 5: Is het waar dat de Chinese Muur vanuit de ruimte zichtbaar is?",
+        answer: false,
+      }
     ];
   }
 
@@ -856,5 +935,4 @@ function updateConnectionStatus(status) {
       statusText.textContent = "Onbekend";
   }
 }
-
 

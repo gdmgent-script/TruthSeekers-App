@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Truth Seekers - CTRL+P</title>
+    <link rel="stylesheet" href="updated_styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <!-- A-Frame and AR.js for AR functionality -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@1.7.2/aframe/build/aframe-ar.min.js"></script>
+    <style>
+        /* AR Button Styles */
+        .ar-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background-color: #ff4444;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .ar-button:hover {
+            background-color: #ff6666;
+            transform: scale(1.1);
+        }
+
+        .ar-button:active {
+            transform: scale(0.95);
+        }
+
+        /* Scanner Square Overlay */
+        .scanner-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanner-square {
+            width: 250px;
+            height: 250px;
+            border: 3px solid #ff4444;
+            border-radius: 12px;
+            position: relative;
+            background: transparent;
+        }
+
+        .scanner-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border: 4px solid #ff4444;
+        }
+
+        .scanner-corner.top-left {
+            top: -4px;
+            left: -4px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        .scanner-corner.top-right {
+            top: -4px;
+            right: -4px;
+            border-left: none;
+            border-bottom: none;
+        }
+
+        .scanner-corner.bottom-left {
+            bottom: -4px;
+            left: -4px;
+            border-right: none;
+            border-top: none;
+        }
+
+        .scanner-corner.bottom-right {
+            bottom: -4px;
+            right: -4px;
+            border-left: none;
+            border-top: none;
+        }
+
+        .scanner-text {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        /* Scanning animation */
+        @keyframes scan {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        .scanner-square {
+            animation: scan 2s infinite;
+        }
+
+        /* AR Scene styling */
+        .ar-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 998;
+            display: none;
+        }
+
+        .ar-scene.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- AR Toggle Button -->
+    <button class="ar-button" id="arButton" title="Toggle AR Camera">
+        📷
+    </button>
+
+    <!-- Scanner Overlay -->
+    <div class="scanner-overlay" id="scannerOverlay">
+        <div class="scanner-square">
+            <div class="scanner-corner top-left"></div>
+            <div class="scanner-corner top-right"></div>
+            <div class="scanner-corner bottom-left"></div>
+            <div class="scanner-corner bottom-right"></div>
+            <div class="scanner-text">Point camera at Hiro marker</div>
+        </div>
+    </div>
+
+    <!-- AR Scene -->
+    <a-scene class="ar-scene" id="arScene" embedded arjs>
+        <a-marker preset="hiro">
+            <a-entity id="dynamicObject" position="0 0 0"></a-entity>
+        </a-marker>
+        <a-entity camera></a-entity>
+    </a-scene>
+
+    <div class="container">
+        <!-- Start Screen -->
+        <div id="startScreen" class="screen active">
+            <div class="logo-container">
+                <img src="logo.png" alt="Truth Seekers Logo" class="logo">
+            </div>
+            <h1>CTRL+P</h1>
+            <p>Ontmasker de Fakemaker!</p>
+            <div class="button-container">
+                <button id="hostGameBtn" class="primary-button">Spel Hosten</button>
+                <button id="goToJoinBtn" class="secondary-button">Deelnemen</button>
+            </div>
+        </div>
+
+        <!-- Host Setup Screen -->
+        <div id="hostSetupScreen" class="screen">
+            <h1>Maak een Spel</h1>
+            <p>Voer je naam in om een nieuw spel te hosten</p>
+            <div class="form-group">
+                <input type="text" id="hostNameInput" placeholder="Jouw Naam" class="input-field">
+                <button id="createGameBtn" class="primary-button">Maak Spel</button>
+                <button id="backFromHostBtn" class="secondary-button" onclick="showScreen('startScreen')">Terug</button>
+            </div>
+        </div>
+
+        <!-- Join Game Screen -->
+        <div id="joinGameScreen" class="screen">
+            <h1>Deelnemen aan Spel</h1>
+            <p>Voer je naam en de spelcode in</p>
+            <div class="form-group">
+                <input type="text" id="playerNameInput" placeholder="Jouw Naam" class="input-field">
+                <input type="text" id="gameCodeInput" placeholder="Spelcode" class="input-field" maxlength="5">
+                <button id="submitJoinBtn" class="primary-button">Deelnemen</button>
+                <button id="backFromJoinBtn" class="secondary-button" onclick="showScreen('startScreen')">Terug</button>
+                <p id="joinErrorMessage" class="error-message hidden"></p>
+            </div>
+        </div>
+
+        <!-- Role Code Screen -->
+        <div id="roleCodeScreen" class="screen">
+            <h1>Voer Rolcode In</h1>
+            <p>Voer de geheime rolcode in die je hebt gekregen</p>
+            <div class="form-group">
+                <input type="text" id="roleCodeInput" placeholder="Rolcode" class="input-field" maxlength="4">
+                <button id="submitRoleBtn" class="primary-button">Bevestigen</button>
+                <p id="roleErrorMessage" class="error-message hidden"></p>
+            </div>
+        </div>
+
+        <!-- Role Confirmation Screen -->
+        <div id="roleConfirmationScreen" class="screen">
+            <h1>Jouw Rol</h1>
+            <div class="role-display">
+                <p>Je bent een <span id="playerRoleDisplay" class="highlight"></span></p>
+                <p id="roleInstructions"></p>
+            </div>
+            <button id="continueAfterRoleBtn" class="primary-button">Doorgaan</button>
+        </div>
+
+        <!-- Host Game Screen -->
+        <div id="hostGameScreen" class="screen">
+            <h1>Spel Aangemaakt!</h1>
+            <p>Deel deze spelcode met andere spelers:</p>
+            <div class="game-code">
+                <span id="gameCodeDisplay"></span>
+            </div>
+            <button id="copyCodeBtn" class="secondary-button" onclick="copyToClipboard(document.getElementById('gameCodeDisplay').textContent)">Code Kopiëren</button>
+            <button id="shareGameBtn" class="secondary-button">Spellink Delen</button>
+            
+            <p id="shareSuccessMessage" class="success-message hidden"></p>
+            
+            <h2>Spelers:</h2>
+            <div id="hostPlayerList" class="player-list"></div>
+            
+            <button id="startGameBtn" class="primary-button" disabled>Spel Starten</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen">
+            <div class="game-header">
+                <div class="player-info">
+                    <p>Huidige Speler: <span id="currentPlayerDisplay" class="highlight"></span></p>
+                    <p>Jouw Rol: <span id="roleName" class="highlight"></span></p>
+                    <p>Jouw Stappen: <span id="stepsDisplay" class="highlight">0</span></p>
+                </div>
+                <div id="answerInfo" class="answer-info hidden">
+                    <p>Juiste Antwoord: <span id="correctAnswer" class="highlight"></span></p>
+                </div>
+            </div>
+            
+            <div id="yourTurnInfo" class="your-turn-info">
+                <p>Het is jouw beurt!</p>
+                <button id="showQuestionBtn" class="primary-button">Toon Vraag</button>
+            </div>
+            
+            <div class="connection-status">
+                <span id="connectionIndicator" class="connection-indicator"></span>
+                <span id="connectionStatus">Verbonden</span>
+            </div>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="questionScreen" class="screen">
+            <h2 id="questionNumber">Vraag 1</h2>
+            <p id="questionContent" class="question-content"></p>
+            
+            <div id="imageContainer" class="media-container hidden">
+                <img id="questionImage" src="" alt="Vraag Afbeelding">
+            </div>
+            
+            <div id="videoContainer" class="media-container hidden">
+                <video id="questionVideo" controls>
+                    <source id="videoSource" src="" type="video/mp4">
+                    Je browser ondersteunt geen video's.
+                </video>
+            </div>
+            
+            <div id="externalActionContainer" class="media-container hidden">
+                <p id="externalActionPrompt"></p>
+            </div>
+            
+            <!-- True/False buttons for real/fake questions -->
+            <div id="trueFalseButtons" class="answer-buttons">
+                <button id="trueBtn" class="answer-button true">Echt</button>
+                <button id="falseBtn" class="answer-button false">Fake</button>
+            </div>
+            
+            <!-- Multiple choice buttons for multiple choice questions -->
+            <div id="multipleChoiceButtons" class="multiple-choice-buttons hidden">
+                <button id="option0" class="answer-button option">1</button>
+                <button id="option1" class="answer-button option">2</button>
+                <button id="option2" class="answer-button option">3</button>
+                <button id="option3" class="answer-button option">4</button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="resultScreen" class="screen">
+            <h1 id="resultTitle">Resultaat</h1>
+            <p id="resultMessage"></p>
+            <p>Jouw stappen: <span id="stepsDisplayResult" class="highlight">0</span></p>
+            <p id="stepChange" class="highlight"></p>
+            <button id="nextTurnBtn" class="primary-button">Volgende Beurt</button>
+            <button id="newGameBtn" class="secondary-button">Nieuw Spel</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // AR Game functionality
+        const object = document.getElementById("dynamicObject");
+        let currentIndex = 0;
+        let isARActive = false;
+
+        const arButton = document.getElementById("arButton");
+        const scannerOverlay = document.getElementById("scannerOverlay");
+        const arScene = document.getElementById("arScene");
+
+        const models = [
+            { primitive: "box", color: "red", scale: "1 1 1" },
+            { primitive: "sphere", color: "blue", scale: "1 1 1" },
+            { primitive: "cone", color: "green", scale: "1 1 1" }
+        ];
+
+        function changeModel() {
+            const model = models[currentIndex];
+            object.setAttribute("geometry", `primitive: ${model.primitive}`);
+            object.setAttribute("material", `color: ${model.color}`);
+            object.setAttribute("scale", model.scale);
+            currentIndex = (currentIndex + 1) % models.length; // Wissel door lijst heen
+        }
+
+        function toggleAR() {
+            if (!isARActive) {
+                isARActive = true;
+                arButton.innerHTML = "❌";
+                arButton.title = "Stop AR Camera";
+                scannerOverlay.style.display = "flex";
+                arScene.classList.add("active");
+            } else {
+                isARActive = false;
+                arButton.innerHTML = "📷";
+                arButton.title = "Toggle AR Camera";
+                scannerOverlay.style.display = "none";
+                arScene.classList.remove("active");
+            }
+        }
+
+        arButton.addEventListener("click", toggleAR);
+
+        // Wait for A-Frame to be ready before adding event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                const marker = document.querySelector("a-marker");
+                if (marker) {
+                    marker.addEventListener("markerFound", () => {
+                        if (isARActive) {
+                            changeModel();
+                            scannerOverlay.style.display = "none";
+                        }
+                    });
+
+                    marker.addEventListener("markerLost", () => {
+                        if (isARActive) {
+                            scannerOverlay.style.display = "flex";
+                        }
+                    });
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
+
