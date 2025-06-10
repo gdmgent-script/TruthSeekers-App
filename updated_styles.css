@@ -461,7 +461,7 @@ button:disabled {
     max-width: 450px; /* Maximum width */
     height: 60vh;   /* 60% of viewport height */
     max-height: 350px;/* Maximum height */
-    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+    background-color: transparent; /* Maak achtergrond transparant */
     border: 2px solid #ff6b6b; /* Accent border */
     border-radius: 10px;
     box-shadow: 0 5px 25px rgba(0, 0, 0, 0.4);
