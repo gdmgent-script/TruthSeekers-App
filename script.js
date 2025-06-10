@@ -144,6 +144,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (closeArViewBtn) {
       closeArViewBtn.addEventListener("click", hideArView);
   }
+  const arTrueBtn = document.getElementById('arTrueBtn');
+  if (arTrueBtn) {
+    arTrueBtn.addEventListener('click', () => handleArScanAnswer(true));
+  }
+  const arFalseBtn = document.getElementById('arFalseBtn');
+  if (arFalseBtn) {
+    arFalseBtn.addEventListener('click', () => handleArScanAnswer(false));
+  }
+
+
 
   // Check for game code in URL
   checkForGameCodeInURL();
@@ -295,8 +305,13 @@ function showArView() {
         
         scene.innerHTML = arSceneInnerHtml; // Add marker and camera entity
         
-        // Append the new scene to the container, AFTER the close button if it's already there.
-        arViewContainer.appendChild(scene);
+        // Insert the new scene before the button container
+        const buttonContainer = arViewContainer.querySelector('.ar-overlay-buttons');
+        if (buttonContainer) {
+            arViewContainer.insertBefore(scene, buttonContainer);
+        } else {
+            arViewContainer.appendChild(scene); // Fallback
+        }
         console.log("AR scene dynamically created and AR.js attribute added.");
 
         scene.addEventListener('loaded', () => {
@@ -344,6 +359,19 @@ function hideArView() {
 
     arViewContainer.classList.remove("active");
     arComponentsInitialized = false; // Reset for next time AR view is opened
+}
+
+// Handle answer from AR scan view
+function handleArScanAnswer(isTrueClicked) {
+    if (isTrueClicked === false) { // User clicked "Nep"
+        console.log("AR Scan: Correct (Nep gekozen)");
+        // Hier kun je eventueel feedback geven of een klein speleffect toevoegen
+    } else { // User clicked "Echt"
+        console.log("AR Scan: Incorrect (Echt gekozen)");
+        // Hier kun je eventueel feedback geven
+    }
+    // Sluit de AR view na de selectie
+    hideArView();
 }
 // Join an existing game
 async function joinGame() {
@@ -1004,3 +1032,55 @@ function updateConnectionStatus(status) {
       statusText.textContent = "Onbekend";
   }
 }
+
+// Camera View Functions
+function showCameraView() {
+    const cameraViewContainer = document.getElementById("cameraViewContainer");
+    if (cameraViewContainer) {
+        cameraViewContainer.classList.remove("hidden");
+    }
+}
+
+function hideCameraView() {
+    const cameraViewContainer = document.getElementById("cameraViewContainer");
+    if (cameraViewContainer) {
+        cameraViewContainer.classList.add("hidden");
+    }
+}
+
+// Handle camera scan answer (always returns "fake")
+function handleCameraScanAnswer() {
+    console.log("Camera Scan: Answer is always 'fake'");
+    // Close the camera view
+    hideCameraView();
+    // You can add additional game logic here if needed
+    // For now, just log that the answer is "fake"
+    alert("Resultaat: Fake!");
+}
+
+// Add event listeners for camera view functionality
+document.addEventListener("DOMContentLoaded", function() {
+    // Scan Hiro button event listener
+    const scanHiroBtn = document.getElementById("scanHiroBtn");
+    if (scanHiroBtn) {
+        scanHiroBtn.addEventListener("click", showCameraView);
+    }
+    
+    // Close camera button event listener
+    const closeCameraBtn = document.getElementById("closeCameraBtn");
+    if (closeCameraBtn) {
+        closeCameraBtn.addEventListener("click", hideCameraView);
+    }
+    
+    // Camera fake answer buttons event listeners
+    const cameraFakeBtn1 = document.getElementById("cameraFakeBtn1");
+    if (cameraFakeBtn1) {
+        cameraFakeBtn1.addEventListener("click", handleCameraScanAnswer);
+    }
+    
+    const cameraFakeBtn2 = document.getElementById("cameraFakeBtn2");
+    if (cameraFakeBtn2) {
+        cameraFakeBtn2.addEventListener("click", handleCameraScanAnswer);
+    }
+});
+
