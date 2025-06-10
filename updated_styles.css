@@ -449,3 +449,56 @@ button:disabled {
         font-size: 16px; /* Prevents zoom on iOS */
     }
 }
+
+/* AR View Overlay Styles */
+.ar-view-overlay {
+    display: none; /* Hidden by default */
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80vw;    /* 80% of viewport width */
+    max-width: 450px; /* Maximum width */
+    height: 60vh;   /* 60% of viewport height */
+    max-height: 350px;/* Maximum height */
+    background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+    border: 2px solid #ff6b6b; /* Accent border */
+    border-radius: 10px;
+    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.4);
+    z-index: 1000;  /* Ensure it's on top of other content */
+    overflow: hidden; /* Crucial for a-scene content */
+}
+
+.ar-view-overlay.active {
+    display: block; /* Show when active */
+    animation: fadeIn 0.3s ease-out; /* Smooth appearance */
+}
+
+.ar-close-button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #ff6b6b; /* Red, matching theme */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 20px;
+    line-height: 30px; /* Center the '×' */
+    text-align: center;
+    cursor: pointer;
+    z-index: 1001; /* Above the a-scene */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.open-ar-button {
+    background-color: #ff6b6b; /* Red button */
+    color: white;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 15px; /* Spacing from other buttons */
+    /* For fixed positioning in a corner, you'd use:
+    position: fixed; bottom: 70px; right: 20px; z-index: 500; */
+}
