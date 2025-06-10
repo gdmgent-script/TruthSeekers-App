@@ -136,9 +136,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("click", shareGame);
 
   // AR View Buttons
-  const openArButton = document.getElementById("openArButton");
-  if (openArButton) {
-      openArButton.addEventListener("click", showArView);
+  const scanHiroBtn = document.getElementById("scanHiroBtn");
+  if (scanHiroBtn) {
+      scanHiroBtn.addEventListener("click", showArView);
   }
   const closeArViewBtn = document.getElementById("closeArViewBtn");
   if (closeArViewBtn) {
