@@ -493,12 +493,13 @@ button:disabled {
 }
 
 .open-ar-button {
+    position: fixed; /* Makes it stay in place on the screen */
+    bottom: 20px;    /* Adjust as needed for positioning */
+    left: 20px;      /* Adjust as needed for positioning */
     background-color: #ff6b6b; /* Red button */
     color: white;
     padding: 10px 15px;
     border-radius: 8px;
     font-size: 0.9rem;
-    margin-top: 15px; /* Spacing from other buttons */
-    /* For fixed positioning in a corner, you'd use:
-    position: fixed; bottom: 70px; right: 20px; z-index: 500; */
+    z-index: 999; /* Ensure it's above most other content but below AR overlay */
 }
