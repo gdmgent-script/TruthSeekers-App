@@ -135,25 +135,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     .getElementById("shareGameBtn")
     .addEventListener("click", shareGame);
 
-  // AR View Buttons
-  const globalScanHiroBtn = document.getElementById("globalScanHiroBtn");
-  if (globalScanHiroBtn) {
-      globalScanHiroBtn.addEventListener("click", showArView);
-  }
-  const closeArViewBtn = document.getElementById("closeArViewBtn");
-  if (closeArViewBtn) {
-      closeArViewBtn.addEventListener("click", hideArView);
-  }
-  const arTrueBtn = document.getElementById('arTrueBtn');
-  if (arTrueBtn) {
-    arTrueBtn.addEventListener('click', () => handleArScanAnswer(true));
-  }
-  const arFalseBtn = document.getElementById('arFalseBtn');
-  if (arFalseBtn) {
-    arFalseBtn.addEventListener('click', () => handleArScanAnswer(false));
-  }
-
-
+  // Add event listener for the AR button
+  document
+    .getElementById("goToARBtn")
+    .addEventListener("click", () => {
+      showScreen("arScreen");
+      initializeAR(); // Initialize AR when switching to the AR screen
+    });
 
   // Check for game code in URL
   checkForGameCodeInURL();
@@ -168,12 +156,6 @@ function showScreen(screenId) {
     screen.classList.remove("active");
   });
   document.getElementById(screenId).classList.add("active");
-
-  // Hide global AR button on screens before game join/start
-  const globalArBtn = document.getElementById("globalScanHiroBtn");
-  if (["startScreen", "hostSetupScreen", "joinGameScreen", "roleCodeScreen"].includes(screenId)) {
-    if (globalArBtn) globalArBtn.classList.add("hidden");
-  }
 }
 
 // Generate a random game code
@@ -235,144 +217,6 @@ async function createGame() {
   }
 }
 
-// AR View Logic
-let arComponentsInitialized = false;
-const arModels = [
-    { primitive: "box", color: "red", scale: "1 1 1" },
-    { primitive: "sphere", color: "blue", scale: "1 1 1" },
-    { primitive: "cone", color: "green", scale: "1 1 1" }
-];
-let arCurrentIndex = 0;
-let arDynamicObject; // Will be assigned when AR is initialized
-
-const arSceneInnerHtml = `
-    <a-marker preset="hiro">
-        <a-entity id="dynamicObject" position="0 0 0" scale="0.5 0.5 0.5"></a-entity>
-    </a-marker>
-    <a-entity camera></a-entity>
-`;
-
-
-function initializeArComponents() {
-    if (arComponentsInitialized) return;
-
-    arDynamicObject = document.getElementById("dynamicObject");
-    // Ensure querySelector is specific enough if multiple markers exist on the page
-    const marker = document.querySelector("#arViewContainer a-marker[preset='hiro']");
-
-    if (!arDynamicObject || !marker) {
-        console.error("AR components (dynamicObject or marker) not found for initialization.");
-        // Retry initialization if elements weren't ready
-        setTimeout(initializeArComponents, 500);
-        return;
-    }
-
-    marker.addEventListener("markerFound", () => {
-        console.log("Marker found, changing AR model.");
-        if (!arDynamicObject) return;
-        const model = arModels[arCurrentIndex];
-        arDynamicObject.setAttribute("geometry", `primitive: ${model.primitive}`);
-        arDynamicObject.setAttribute("material", `color: ${model.color}`);
-        arDynamicObject.setAttribute("scale", model.scale); // Use model-specific scale
-        arCurrentIndex = (arCurrentIndex + 1) % arModels.length;
-    });
-
-    arComponentsInitialized = true;
-    console.log("AR Components Initialized");
-}
-
-function showArView() {
-    const arViewContainer = document.getElementById("arViewContainer");
-    if (!arViewContainer) {
-        console.error("AR View Container not found.");
-        return;
-    }
-
-    arViewContainer.classList.add("active");
-
-    // Check if scene already exists (it shouldn't if hideArView removes it)
-    let scene = arViewContainer.querySelector('a-scene');
-
-    if (!scene) {
-        // Create the scene element
-        scene = document.createElement('a-scene');
-        scene.setAttribute('embedded', '');
-        scene.setAttribute('style', 'width: 100%; height: 100%;');
-        
-        // Add AR.js attributes - THIS WILL LIKELY TRIGGER CAMERA PERMISSION
-        // Ensure this is what you intend for camera triggering.
-        scene.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
-        
-        scene.innerHTML = arSceneInnerHtml; // Add marker and camera entity
-        
-        // Insert the new scene before the button container
-        const buttonContainer = arViewContainer.querySelector('.ar-overlay-buttons');
-        if (buttonContainer) {
-            arViewContainer.insertBefore(scene, buttonContainer);
-        } else {
-            arViewContainer.appendChild(scene); // Fallback
-        }
-        console.log("AR scene dynamically created and AR.js attribute added.");
-
-        scene.addEventListener('loaded', () => {
-            console.log("Dynamically created AR scene loaded.");
-            if (!scene.isPlaying) {
-                 scene.play();
-            }
-            // Initialize custom AR components (like marker listeners)
-            // Ensure arComponentsInitialized is false before calling
-            if (!arComponentsInitialized) {
-                initializeArComponents(); 
-            }
-        }, { once: true });
-
-    } else {
-        // This case should ideally not be hit if hideArView correctly removes the scene.
-        // However, as a fallback:
-        console.warn("AR scene already existed. Ensuring it's set up.");
-        if (!scene.hasAttribute('arjs')) { // If arjs was somehow removed but scene persisted
-            scene.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
-        }
-        if (scene.hasLoaded && !scene.isPlaying) {
-            scene.play();
-        }
-        if (!arComponentsInitialized) {
-            setTimeout(initializeArComponents, 500);
-        }
-    }
-}
-
-function hideArView() {
-    const arViewContainer = document.getElementById("arViewContainer");
-    if (!arViewContainer) return;
-
-    const scene = arViewContainer.querySelector('a-scene');
-
-    if (scene) {
-        if (scene && scene.hasLoaded) { // Only pause if it's loaded
-            scene.pause(); // Pause the A-Frame scene to release camera
-        }
-        // Remove the scene element itself from the DOM
-        scene.parentNode.removeChild(scene);
-        console.log("AR scene removed from DOM.");
-    }
-
-    arViewContainer.classList.remove("active");
-    arComponentsInitialized = false; // Reset for next time AR view is opened
-}
-
-// Handle answer from AR scan view
-function handleArScanAnswer(isTrueClicked) {
-    if (isTrueClicked === false) { // User clicked "Nep"
-        console.log("AR Scan: Correct (Nep gekozen)");
-        // Hier kun je eventueel feedback geven of een klein speleffect toevoegen
-    } else { // User clicked "Echt"
-        console.log("AR Scan: Incorrect (Echt gekozen)");
-        // Hier kun je eventueel feedback geven
-    }
-    // Sluit de AR view na de selectie
-    hideArView();
-}
 // Join an existing game
 async function joinGame() {
   const playerName = document.getElementById("playerNameInput").value.trim();
@@ -599,10 +443,6 @@ async function submitRoleCode() {
 
 // Continue after role assignment
 function continueAfterRole() {
-  // Show global AR button now that role is confirmed
-  const globalArBtn = document.getElementById("globalScanHiroBtn");
-  if (globalArBtn) globalArBtn.classList.remove("hidden");
-
   // If player is host, go to host screen
   const isHost = gameState.players.find(
     (p) => p.name === gameState.playerName
@@ -629,10 +469,6 @@ function continueAfterRole() {
 
 // Update game display
 function updateGameDisplay() {
-  // Ensure global AR button is visible if game is active
-  const globalArBtn = document.getElementById("globalScanHiroBtn");
-  if (globalArBtn) globalArBtn.classList.remove("hidden");
-
   const currentPlayer = gameState.players[gameState.currentPlayerIndex];
 
   // Update current player display
@@ -823,10 +659,6 @@ function resetGame() {
 
   // Stop listening for updates
   stopListeningForUpdates();
-
-  // Hide the global AR button
-  const globalArBtn = document.getElementById("globalScanHiroBtn");
-  if (globalArBtn) globalArBtn.classList.add("hidden");
 
   // Show start screen
   showScreen("startScreen");
@@ -1033,54 +865,54 @@ function updateConnectionStatus(status) {
   }
 }
 
-// Camera View Functions
-function showCameraView() {
-    const cameraViewContainer = document.getElementById("cameraViewContainer");
-    if (cameraViewContainer) {
-        cameraViewContainer.classList.remove("hidden");
+
+
+
+
+// AR Functionality
+let arCurrentIndex = 0;
+const arModels = [
+  { primitive: "box", color: "red", scale: "1 1 1" },
+  { primitive: "sphere", color: "blue", scale: "1 1 1" },
+  { primitive: "cone", color: "green", scale: "1 1 1" }
+];
+
+function changeArModel() {
+  const arObject = document.getElementById("dynamicObject");
+  if (arObject) { // Check if the AR object exists on the current screen
+    const model = arModels[arCurrentIndex];
+    arObject.setAttribute("geometry", `primitive: ${model.primitive}`);
+    arObject.setAttribute("material", `color: ${model.color}`);
+    arObject.setAttribute("scale", model.scale);
+    arCurrentIndex = (arCurrentIndex + 1) % arModels.length;
+  }
+}
+
+// Function to initialize AR when the AR screen is shown
+function initializeAR() {
+    const marker = document.querySelector("a-marker");
+    if (marker) {
+        marker.addEventListener("markerFound", () => {
+            console.log("Marker found, changing AR model.");
+            changeArModel();
+        });
+    } else {
+        console.log("AR Marker not found on this screen.");
     }
 }
 
-function hideCameraView() {
-    const cameraViewContainer = document.getElementById("cameraViewContainer");
-    if (cameraViewContainer) {
-        cameraViewContainer.classList.add("hidden");
-    }
-}
+// Modify the DOMContentLoaded event listener to include AR button
+document.addEventListener("DOMContentLoaded", async () => {
+    // ... (existing game initialization code) ...
 
-// Handle camera scan answer (always returns "fake")
-function handleCameraScanAnswer() {
-    console.log("Camera Scan: Answer is always 'fake'");
-    // Close the camera view
-    hideCameraView();
-    // You can add additional game logic here if needed
-    // For now, just log that the answer is "fake"
-    alert("Resultaat: Fake!");
-}
-
-// Add event listeners for camera view functionality
-document.addEventListener("DOMContentLoaded", function() {
-    // Scan Hiro button event listener
-    const scanHiroBtn = document.getElementById("scanHiroBtn");
-    if (scanHiroBtn) {
-        scanHiroBtn.addEventListener("click", showCameraView);
-    }
-    
-    // Close camera button event listener
-    const closeCameraBtn = document.getElementById("closeCameraBtn");
-    if (closeCameraBtn) {
-        closeCameraBtn.addEventListener("click", hideCameraView);
-    }
-    
-    // Camera fake answer buttons event listeners
-    const cameraFakeBtn1 = document.getElementById("cameraFakeBtn1");
-    if (cameraFakeBtn1) {
-        cameraFakeBtn1.addEventListener("click", handleCameraScanAnswer);
-    }
-    
-    const cameraFakeBtn2 = document.getElementById("cameraFakeBtn2");
-    if (cameraFakeBtn2) {
-        cameraFakeBtn2.addEventListener("click", handleCameraScanAnswer);
+    // Add event listener for the AR button
+    const goToARBtn = document.getElementById("goToARBtn");
+    if (goToARBtn) {
+        goToARBtn.addEventListener("click", () => {
+            showScreen("arScreen");
+            initializeAR(); // Initialize AR when switching to the AR screen
+        });
     }
 });
+
 
