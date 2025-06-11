@@ -134,17 +134,8 @@
                 <p id="externalActionPrompt"></p>
             </div>
             
-            <!-- Gameplay buttons with scan Hiro option -->
-            <div id="gameplayButtons" class="gameplay-buttons">
-                <div class="main-actions">
-                    <button id="showQuestionBtn" class="primary-button">Toon Vraag</button>
-                    <button id="scanHiroBtn" class="scan-hiro-button">scan Hiro</button>
-                </div>
-                <button id="connectBtn" class="connect-button">Verbonden</button>
-            </div>
-            
             <!-- True/False buttons for real/fake questions -->
-            <div id="trueFalseButtons" class="answer-buttons hidden">
+            <div id="trueFalseButtons" class="answer-buttons">
                 <button id="trueBtn" class="answer-button true">Echt</button>
                 <button id="falseBtn" class="answer-button false">Fake</button>
             </div>
@@ -166,24 +157,6 @@
             <p id="stepChange" class="highlight"></p>
             <button id="nextTurnBtn" class="primary-button">Volgende Beurt</button>
             <button id="newGameBtn" class="secondary-button">Nieuw Spel</button>
-        </div>
-        
-        <!-- Camera View Container (Overlay) -->
-        <div id="cameraViewContainer" class="camera-view-overlay hidden">
-            <div class="camera-view">
-                <div class="camera-header">
-                    <h3>Camera Scan</h3>
-                    <button id="closeCameraBtn" class="close-camera-button">&times;</button>
-                </div>
-                <div class="camera-display">
-                    <!-- White rectangle representing camera view -->
-                    <div class="camera-screen"></div>
-                </div>
-                <div class="camera-answer-buttons">
-                    <button id="cameraFakeBtn1" class="answer-button fake">Fake</button>
-                    <button id="cameraFakeBtn2" class="answer-button fake">Fake</button>
-                </div>
-            </div>
         </div>
         
         <!-- AR View Container (Overlay) -->
